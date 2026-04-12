@@ -1,5 +1,5 @@
 """
-market_scanner.py — Gelismis Piyasa Tarayici (V2)
+market_scanner.py — Gelismis Piyasa Tarayici (V3)
 
 Alpaca Data API'dan fiyat verisi ceker ve profesyonel teknik indikatörler hesaplar.
 Ross Cameron tarzi momentum trading icin optimize edilmistir.
@@ -8,6 +8,8 @@ Hesaplanan indikatörler:
   - EMA 9 / 21 / 50
   - RSI 14
   - ATR 14 (Average True Range — volatilite)
+  - MACD (12/26/9) + Histogram + Sinyal
+  - Bollinger Bands (20, 2σ)
   - Volume Ratio (bugünkü hacim / 20 günlük ortalama)
   - Momentum Score (0-100, bilesik skor)
   - Gap % (önceki kapanisa göre acilis farki)
@@ -17,6 +19,7 @@ Hesaplanan indikatörler:
 Harici kütüphane gerekmez — hesaplamalar saf Python ile yapılır.
 """
 
+import math
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -28,19 +31,16 @@ _env_vals = dotenv_values(_env_path)
 
 def _get(key): return os.getenv(key) or _env_vals.get(key, "")
 
-# ── Izleme Listesi ────────────────────────────────────────────────
-# Momentum trading icin: buyuk hacimli, likit hisseler + ETF'ler
-WATCHLIST = [
-    # Mega-cap tech (yüksek momentum potansiyeli)
-    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "TSLA", "META", "AMD",
-    # ETF'ler (piyasa rejimi tespiti icin)
-    "SPY", "QQQ",
-    # Ek momentum adaylari
-    "NFLX", "CRM", "AVGO", "COIN", "MARA",
-]
+from config import (
+    WATCHLIST as _CFG_WATCHLIST,
+    BENCHMARK as _CFG_BENCHMARK,
+    LOOKBACK_DAYS,
+    SIGNAL_GAP_THRESHOLD, SIGNAL_VOLUME_THRESHOLD,
+)
 
-# Benchmark — rejim algilama icin
-BENCHMARK = "SPY"
+# Config'den al
+WATCHLIST = _CFG_WATCHLIST
+BENCHMARK = _CFG_BENCHMARK
 
 # ─────────────────────────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ def get_market_data() -> dict:
         )
 
         end   = datetime.now(timezone.utc)
-        start = end - timedelta(days=90)  # EMA50 + ATR icin yeterli veri
+        start = end - timedelta(days=LOOKBACK_DAYS)
 
         req = StockBarsRequest(
             symbol_or_symbols=WATCHLIST,
@@ -149,18 +149,26 @@ def get_market_data() -> dict:
                 # VWAP yaklasimi (günlük: typical_price * volume / total_volume)
                 vwap = _vwap_approx(highs[-5:], lows[-5:], closes[-5:], volumes[-5:])
 
+                # V3: MACD (12, 26, 9)
+                macd_data = _macd(closes)
+
+                # V3: Bollinger Bands (20, 2σ)
+                bb_data = _bollinger_bands(closes)
+
                 # Trend tespiti
                 trend = _detect_trend(closes, ema9, ema21, ema50)
 
-                # Sinyal
+                # Sinyal (V3: MACD + Bollinger dahil)
                 signal = _generate_signal(
-                    ema9, ema21, ema50, rsi14, vol_ratio, change_pct, gap_pct, trend
+                    ema9, ema21, ema50, rsi14, vol_ratio, change_pct, gap_pct, trend,
+                    macd_data=macd_data, bb_data=bb_data, current_price=current,
                 )
 
                 # Momentum Score (0-100) — bilesik skor
                 momentum_score = _calc_momentum_score(
                     change_pct, gap_pct, vol_ratio, rsi14,
-                    ema9, ema21, ema50, atr_pct, trend
+                    ema9, ema21, ema50, atr_pct, trend,
+                    macd_data=macd_data, bb_data=bb_data, current_price=current,
                 )
 
                 if ticker == BENCHMARK:
@@ -187,6 +195,15 @@ def get_market_data() -> dict:
                     "momentum_score": momentum_score,
                     "signal":        signal,
                     "trend":         trend,
+                    "macd":          macd_data["macd"],
+                    "macd_signal":   macd_data["signal"],
+                    "macd_histogram": macd_data["histogram"],
+                    "macd_cross":    macd_data["cross"],
+                    "bb_upper":      bb_data["upper"],
+                    "bb_middle":     bb_data["middle"],
+                    "bb_lower":      bb_data["lower"],
+                    "bb_width":      bb_data["width"],
+                    "bb_position":   bb_data["position"],
                     "bars_5d":       [round(c, 2) for c in closes[-5:]],
                     "relative_strength": round(change_pct - spy_change, 2),
                 }
@@ -269,6 +286,93 @@ def _atr(highs: list, lows: list, closes: list, period: int = 14) -> float:
     return atr
 
 
+def _macd(closes: list, fast: int = 12, slow: int = 26, signal_period: int = 9) -> dict:
+    """
+    MACD (Moving Average Convergence Divergence).
+    Returns: macd line, signal line, histogram, cross direction.
+    """
+    if len(closes) < slow + signal_period:
+        return {"macd": 0, "signal": 0, "histogram": 0, "cross": "none"}
+
+    ema_fast = _ema(closes, fast)
+    ema_slow = _ema(closes, slow)
+    macd_line = round(ema_fast - ema_slow, 4)
+
+    # MACD serisini hesapla (signal line için)
+    macd_series = []
+    k_fast = 2 / (fast + 1)
+    k_slow = 2 / (slow + 1)
+    ef = sum(closes[:fast]) / fast
+    es = sum(closes[:slow]) / slow
+    for i in range(slow, len(closes)):
+        ef = closes[i] * k_fast + ef * (1 - k_fast)
+        es = closes[i] * k_slow + es * (1 - k_slow)
+        macd_series.append(ef - es)
+
+    # Signal line (EMA of MACD)
+    if len(macd_series) >= signal_period:
+        k_sig = 2 / (signal_period + 1)
+        sig = sum(macd_series[:signal_period]) / signal_period
+        for val in macd_series[signal_period:]:
+            sig = val * k_sig + sig * (1 - k_sig)
+        signal_line = round(sig, 4)
+    else:
+        signal_line = 0
+
+    histogram = round(macd_line - signal_line, 4)
+
+    # Cross detection
+    cross = "none"
+    if len(macd_series) >= 2:
+        prev_hist = macd_series[-2] - signal_line if len(macd_series) > 1 else 0
+        if histogram > 0 and prev_hist <= 0:
+            cross = "bullish_cross"
+        elif histogram < 0 and prev_hist >= 0:
+            cross = "bearish_cross"
+
+    return {
+        "macd": round(macd_line, 2),
+        "signal": round(signal_line, 2),
+        "histogram": round(histogram, 2),
+        "cross": cross,
+    }
+
+
+def _bollinger_bands(closes: list, period: int = 20, std_dev: float = 2.0) -> dict:
+    """
+    Bollinger Bands (20, 2σ).
+    Returns: upper, middle, lower, width, position (0-1 where price sits).
+    """
+    if len(closes) < period:
+        price = closes[-1] if closes else 0
+        return {"upper": price, "middle": price, "lower": price, "width": 0, "position": 0.5}
+
+    window = closes[-period:]
+    middle = sum(window) / period
+    variance = sum((x - middle) ** 2 for x in window) / period
+    std = math.sqrt(variance)
+
+    upper = round(middle + std_dev * std, 2)
+    lower = round(middle - std_dev * std, 2)
+    middle = round(middle, 2)
+
+    # Band width (volatilite ölçüsü)
+    width = round((upper - lower) / middle * 100, 2) if middle > 0 else 0
+
+    # Position: fiyat bandın neresinde? (0=alt, 0.5=orta, 1=üst)
+    current = closes[-1]
+    band_range = upper - lower
+    position = round((current - lower) / band_range, 2) if band_range > 0 else 0.5
+
+    return {
+        "upper": upper,
+        "middle": middle,
+        "lower": lower,
+        "width": width,
+        "position": max(0, min(1, position)),
+    }
+
+
 def _vwap_approx(highs: list, lows: list, closes: list, volumes: list) -> float:
     """VWAP yaklasimi (son N bar icin)."""
     if not volumes or sum(volumes) == 0:
@@ -294,12 +398,13 @@ def _detect_trend(closes: list, ema9: float, ema21: float, ema50: float) -> str:
     return "sideways"
 
 
-def _generate_signal(ema9, ema21, ema50, rsi, vol_ratio, change_pct, gap_pct, trend):
+def _generate_signal(ema9, ema21, ema50, rsi, vol_ratio, change_pct, gap_pct, trend,
+                     macd_data=None, bb_data=None, current_price=0):
     """
-    Gelismis sinyal üretimi — Ross Cameron kriterleri:
-    - strong_buy : momentum + hacim patlamasi + trend uyumu
-    - buy        : teknik olarak uygun, konfirmasyona yakin
-    - neutral    : belirsiz, bekle
+    V3 Gelismis sinyal üretimi — Ross Cameron + MACD + Bollinger confluence:
+    - strong_buy : momentum + hacim + trend + MACD bullish + BB alt bant
+    - buy        : teknik uyum + en az 2 konfirmasyon
+    - neutral    : belirsiz
     - sell       : satis sinyali
     - strong_sell: acil cikis
     """
@@ -316,30 +421,30 @@ def _generate_signal(ema9, ema21, ema50, rsi, vol_ratio, change_pct, gap_pct, tr
         score -= 3
 
     # RSI (momentum bandı)
-    if 40 <= rsi <= 65:       # Ideal momentum bölgesi
+    if 40 <= rsi <= 65:
         score += 2
-    elif 30 <= rsi < 40:      # Dip alim potansiyeli
+    elif 30 <= rsi < 40:
         score += 1
-    elif rsi > 80:            # Asiri alim — tehlike
+    elif rsi > 80:
         score -= 2
-    elif rsi < 25:            # Asiri satim — potansiyel bounce
+    elif rsi < 25:
         score += 1
 
-    # Hacim konfirmasyonu (+2 / -1)
-    if vol_ratio >= 2.0:      # Hacim patlamasi (Ross Cameron kriteri!)
+    # Hacim konfirmasyonu
+    if vol_ratio >= SIGNAL_VOLUME_THRESHOLD:
         score += 3
     elif vol_ratio >= 1.3:
         score += 1
     elif vol_ratio < 0.5:
         score -= 1
 
-    # Gap & Go (Ross Cameron ana stratejisi)
-    if gap_pct >= 4.0 and vol_ratio >= 1.5:
-        score += 3            # Klasik Gap & Go setup
+    # Gap & Go
+    if gap_pct >= SIGNAL_GAP_THRESHOLD and vol_ratio >= 1.5:
+        score += 3
     elif gap_pct >= 2.0 and vol_ratio >= 1.2:
         score += 2
-    elif gap_pct <= -4.0:
-        score -= 2            # Gap down — dikkat
+    elif gap_pct <= -SIGNAL_GAP_THRESHOLD:
+        score -= 2
 
     # Günlük degisim
     if change_pct >= 3.0:
@@ -347,28 +452,52 @@ def _generate_signal(ema9, ema21, ema50, rsi, vol_ratio, change_pct, gap_pct, tr
     elif change_pct <= -3.0:
         score -= 1
 
+    # V3: MACD Confluence (+2 / -2)
+    if macd_data:
+        if macd_data["cross"] == "bullish_cross":
+            score += 2
+        elif macd_data["cross"] == "bearish_cross":
+            score -= 2
+        elif macd_data["histogram"] > 0:
+            score += 1
+        elif macd_data["histogram"] < 0:
+            score -= 1
+
+    # V3: Bollinger Bands Confluence (+2 / -2)
+    if bb_data and current_price > 0:
+        bb_pos = bb_data["position"]
+        if bb_pos <= 0.1:    # Fiyat alt banda yakin — bounce potansiyeli
+            score += 2
+        elif bb_pos >= 0.9:  # Fiyat ust banda yakin — geri cekilme riski
+            score -= 1
+        if bb_data["width"] > 8:  # Genis band = yüksek volatilite = firsat
+            score += 1
+
     # Sinyal haritalama
-    if score >= 6:
+    if score >= 7:
         return "strong_buy"
     elif score >= 3:
         return "buy"
-    elif score <= -4:
+    elif score <= -5:
         return "strong_sell"
     elif score <= -2:
         return "sell"
     return "neutral"
 
 
-def _calc_momentum_score(change_pct, gap_pct, vol_ratio, rsi, ema9, ema21, ema50, atr_pct, trend):
+def _calc_momentum_score(change_pct, gap_pct, vol_ratio, rsi, ema9, ema21, ema50, atr_pct, trend,
+                         macd_data=None, bb_data=None, current_price=0):
     """
-    Bilesik momentum skoru (0-100).
-    Ross Cameron'in odaklandigi 4 faktör:
+    V3 Bilesik momentum skoru (0-100).
+    6 faktör (Ross Cameron + MACD + Bollinger):
     1. Fiyat hareketi (change + gap)
     2. Hacim gücü (volume ratio)
     3. Trend uyumu (EMA yapilanmasi)
-    4. Volatilite (ATR — hareket potansiyeli)
+    4. Volatilite (ATR)
+    5. MACD momentum
+    6. Bollinger position
     """
-    score = 50  # Baz
+    score = 50
 
     # 1. Fiyat hareketi (max +/- 20)
     score += min(max(change_pct * 3, -20), 20)
@@ -386,25 +515,41 @@ def _calc_momentum_score(change_pct, gap_pct, vol_ratio, rsi, ema9, ema21, ema50
 
     # 3. Trend uyumu (max +/- 15)
     trend_map = {
-        "strong_uptrend": 15,
-        "uptrend": 8,
-        "sideways": 0,
-        "downtrend": -8,
-        "strong_downtrend": -15,
+        "strong_uptrend": 15, "uptrend": 8, "sideways": 0,
+        "downtrend": -8, "strong_downtrend": -15,
     }
     score += trend_map.get(trend, 0)
 
-    # 4. Volatilite bonus (hareket potansiyeli)
-    if 1.5 <= atr_pct <= 4.0:   # Ideal volatilite bandi
+    # 4. Volatilite
+    if 1.5 <= atr_pct <= 4.0:
         score += 5
-    elif atr_pct > 6.0:         # Cok volatil — riskli
+    elif atr_pct > 6.0:
         score -= 5
 
     # RSI ayarlama
     if rsi > 80:
-        score -= 10  # Asiri alim penalti
+        score -= 10
     elif rsi < 20:
-        score -= 5   # Asiri satim — belirsiz
+        score -= 5
+
+    # 5. V3: MACD momentum (+/- 8)
+    if macd_data:
+        if macd_data["cross"] == "bullish_cross":
+            score += 8
+        elif macd_data["cross"] == "bearish_cross":
+            score -= 8
+        elif macd_data["histogram"] > 0:
+            score += 3
+        elif macd_data["histogram"] < 0:
+            score -= 3
+
+    # 6. V3: Bollinger position (+/- 5)
+    if bb_data:
+        bb_pos = bb_data["position"]
+        if bb_pos <= 0.15:   # Alt bant — oversold bounce
+            score += 5
+        elif bb_pos >= 0.85: # Üst bant — overbought
+            score -= 3
 
     return max(0, min(100, round(score)))
 

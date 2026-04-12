@@ -37,9 +37,10 @@ from trade_journal import (
     calculate_performance, generate_lesson, get_learning_context,
 )
 from risk_manager import RiskManager
-from ai_advisor import analyze_trade, review_strategy, is_enabled, AI_APPROVAL_REQUIRED
+from ai_advisor import analyze_trade, review_strategy, is_enabled
 import scheduler as sched
 from market_scanner import get_market_data, WATCHLIST
+import config as cfg
 
 _env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(_env_path)
@@ -98,8 +99,9 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Sabitler
 # ──────────────────────────────────────────────────────────────────
 
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
-MAX_RISK_PCT = float(os.getenv("MAX_RISK_PCT", "0.02"))
+WEBHOOK_SECRET = cfg.WEBHOOK_SECRET
+MAX_RISK_PCT = cfg.MAX_RISK_PCT
+AI_APPROVAL_REQUIRED = cfg.AI_APPROVAL_REQUIRED
 
 broker = EquityBroker()
 risk = RiskManager(max_risk_pct=MAX_RISK_PCT)
@@ -486,12 +488,70 @@ async def approve_trade(data: dict):
     }
 
 
+@app.get("/api/config")
+async def get_config():
+    """V3: Tüm konfigürasyonu döndür."""
+    return cfg.get_all()
+
+
+@app.get("/api/risk-metrics")
+async def risk_metrics():
+    """V3: Sharpe Ratio, Sortino, VaR hesapla."""
+    journal = get_journal_entries(limit=100)
+    returns = [
+        e.get("pnl_pct", 0) for e in journal
+        if isinstance(e, dict) and e.get("pnl_pct") is not None and e.get("pnl_pct") != 0
+    ]
+    return risk.calculate_risk_metrics(returns)
+
+
+@app.get("/api/sector-exposure")
+async def sector_exposure():
+    """V3: Sektör bazlı portföy dağılımı."""
+    try:
+        account = broker.client.get_account()
+        positions = broker.client.get_all_positions()
+        equity = float(account.equity)
+        pos_list = [
+            {"ticker": p.symbol, "qty": float(p.qty), "current_price": float(p.current_price)}
+            for p in positions
+        ]
+        return risk.check_sector_exposure(equity, pos_list)
+    except Exception as e:
+        return {"error": str(e), "sectors": {}, "warnings": []}
+
+
+@app.get("/api/flash-crash-check")
+async def flash_crash_check():
+    """V3: Flash crash kontrol — anlık büyük düşüş tespiti."""
+    try:
+        positions = broker.client.get_all_positions()
+        pos_list = [
+            {"ticker": p.symbol, "qty": float(p.qty), "current_price": float(p.current_price)}
+            for p in positions
+        ]
+        loop = asyncio.get_event_loop()
+        market_data = await loop.run_in_executor(None, get_market_data)
+        return risk.check_flash_crash(pos_list, market_data)
+    except Exception as e:
+        return {"flash_crash_detected": False, "alerts": [], "error": str(e)}
+
+
+@app.post("/api/emergency-liquidate")
+async def emergency_liquidate():
+    """V3: Acil durum — tüm pozisyonları kapat."""
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, broker.emergency_liquidate)
+    await manager.broadcast({"type": "emergency_liquidate", "result": result})
+    return result
+
+
 @app.get("/api/health")
 async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "2.0",
+        "version": "3.0",
         "ai_enabled": is_enabled(),
         "regime": last_scan.get("regime", "unknown"),
         "session_mode": last_scan.get("session_mode", "unknown"),

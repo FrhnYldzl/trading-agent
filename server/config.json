@@ -1,0 +1,30 @@
+{
+  "WATCHLIST": [
+    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",
+    "TSLA", "META", "AMD", "SPY", "QQQ",
+    "NFLX", "CRM", "AVGO", "COIN", "MARA"
+  ],
+  "BENCHMARK": "SPY",
+  "SCAN_INTERVAL_MIN": 10,
+  "LOOKBACK_DAYS": 90,
+  "CONFIDENCE_RISK_MAP": {
+    "10": 0.020, "9": 0.020, "8": 0.018, "7": 0.015,
+    "6": 0.012, "5": 0.010, "4": 0.008,
+    "3": 0.000, "2": 0.000, "1": 0.000
+  },
+  "REGIME_MULTIPLIERS": {
+    "bull_strong": 1.0, "bull": 0.9, "neutral": 0.7,
+    "bear": 0.5, "bear_strong": 0.3
+  },
+  "REGIME_MAX_INVESTED": {
+    "bull_strong": 95, "bull": 85, "neutral": 70,
+    "bear": 40, "bear_strong": 30
+  },
+  "SECTOR_MAP": {
+    "AAPL": "Technology", "MSFT": "Technology", "NVDA": "Technology",
+    "GOOGL": "Technology", "AMZN": "Consumer Cyclical", "TSLA": "Consumer Cyclical",
+    "META": "Technology", "AMD": "Technology", "NFLX": "Communication",
+    "CRM": "Technology", "AVGO": "Technology", "COIN": "Financial",
+    "MARA": "Financial", "SPY": "ETF", "QQQ": "ETF"
+  }
+}
