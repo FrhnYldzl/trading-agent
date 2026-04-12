@@ -11,13 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Uygulama dosyalari
+# Uygulama dosyalari — tum proje
 COPY server/ ./server/
 
-# Port (Railway otomatik atar)
+# PYTHONPATH ayarla — server/ icindeki moduller birbirini bulsun
+ENV PYTHONPATH=/app/server
+
+# Railway PORT env var inject eder, varsayilan 8000
 ENV PORT=8000
-EXPOSE ${PORT}
+EXPOSE 8000
+
+# Calisma dizini server/ olsun
+WORKDIR /app/server
 
 # Baslat
-WORKDIR /app/server
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT}
+CMD sh -c "exec uvicorn main:app --host 0.0.0.0 --port $PORT"
