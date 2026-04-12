@@ -1,0 +1,82 @@
+// @version=5
+// ─────────────────────────────────────────────────────────────────
+// EMA Cross Strategy — TradingView Webhook Entegrasyonlu
+//
+// Strateji Mantığı:
+//   • Hızlı EMA (9) Yavaş EMA'yı (21) yukarı kesiyor → LONG giriş
+//   • Hızlı EMA (9) Yavaş EMA'yı (21) aşağı kesiyor → Pozisyonu kapat
+//
+// Güvenlik:
+//   • barstate.isconfirmed → canlı bar'da erken sinyal üretmez (repainting yok)
+//   • lookahead_off       → gelecek veriye bakma
+//   • calc_on_every_tick=false → sadece kapanışta hesapla
+//
+// Kullanım:
+//   1. TradingView'de grafik aç → "Pine Editor" → kodu yapıştır → Ekle
+//   2. Strateji ayarlarından webhook URL'ni gir
+//   3. Alert'i "Order fills only" veya "Once per bar close" olarak ayarla
+// ─────────────────────────────────────────────────────────────────
+
+strategy(
+    title            = "EMA Cross — Webhook Bot",
+    shorttitle       = "EMA Cross",
+    overlay          = true,
+    calc_on_every_tick = false,
+    default_qty_type = strategy.percent_of_equity,
+    default_qty_value = 10,
+    commission_type  = strategy.commission.percent,
+    commission_value = 0.1
+)
+
+// ─── Parametreler ─────────────────────────────────────────────────
+fast_len  = input.int(9,  minval=1, title="Hızlı EMA Periyodu")
+slow_len  = input.int(21, minval=1, title="Yavaş EMA Periyodu")
+webhook_secret = input.string("buraya-sifre-yaz", title="Webhook Secret",
+    tooltip="server/.env dosyasındaki WEBHOOK_SECRET ile aynı olmalı")
+
+// ─── İndikatörler ─────────────────────────────────────────────────
+fast_ema = ta.ema(close, fast_len)
+slow_ema = ta.ema(close, slow_len)
+
+// ─── Sinyal Koşulları (sadece doğrulanmış bar'da) ─────────────────
+long_signal  = ta.crossover(fast_ema, slow_ema)  and barstate.isconfirmed
+close_signal = ta.crossunder(fast_ema, slow_ema) and barstate.isconfirmed
+
+// ─── Webhook Alert Mesaj Şablonları ───────────────────────────────
+// Bu JSON mesajlar server/main.py'deki Signal modeline uygun formattadır
+long_msg = '{"ticker":"' + syminfo.ticker +
+           '","action":"long"' +
+           ',"price":' + str.tostring(close) +
+           ',"secret":"' + webhook_secret + '"}'
+
+close_msg = '{"ticker":"' + syminfo.ticker +
+            '","action":"close_long"' +
+            ',"price":' + str.tostring(close) +
+            ',"secret":"' + webhook_secret + '"}'
+
+// ─── İşlemler ─────────────────────────────────────────────────────
+if long_signal
+    strategy.entry("Long", strategy.long, alert_message=long_msg)
+
+if close_signal
+    strategy.close("Long", alert_message=close_msg)
+
+// ─── Görsel ───────────────────────────────────────────────────────
+plot(fast_ema, title="Hızlı EMA (" + str.tostring(fast_len) + ")",
+     color=color.new(color.blue, 0), linewidth=2)
+plot(slow_ema, title="Yavaş EMA (" + str.tostring(slow_len) + ")",
+     color=color.new(color.orange, 0), linewidth=2)
+
+// Long giriş oku
+plotshape(long_signal,  title="Long Giriş",  location=location.belowbar,
+     style=shape.triangleup,   color=color.new(color.green, 0), size=size.small)
+
+// Çıkış oku
+plotshape(close_signal, title="Pozisyon Kapat", location=location.abovebar,
+     style=shape.triangledown, color=color.new(color.red, 0),   size=size.small)
+
+// ─── Alert Oluşturma Notu ──────────────────────────────────────────
+// TradingView → Alerts → Create Alert
+// Condition : EMA Cross — Webhook Bot → Order fills
+// Webhook URL: http://SUNUCU_IP:8000/webhook
+// Message   : (otomatik dolar — alert_message parametresinden gelir)

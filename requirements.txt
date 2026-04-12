@@ -1,0 +1,11 @@
+fastapi==0.135.3
+uvicorn[standard]==0.44.0
+alpaca-py==0.43.2
+python-dotenv==1.2.2
+pydantic==2.12.5
+requests==2.33.1
+aiofiles==25.1.0
+websockets==16.0
+anthropic==0.94.0
+APScheduler==3.11.2
+pytz==2025.2
