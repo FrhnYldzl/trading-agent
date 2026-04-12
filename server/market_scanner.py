@@ -615,3 +615,249 @@ def is_premarket() -> bool:
     pre_open  = now.replace(hour=8,  minute=0,  second=0)
     mkt_open  = now.replace(hour=13, minute=30, second=0)
     return pre_open <= now < mkt_open
+
+
+# ═══════════════════════════════════════════════════════════════
+# V3: Multi-Timeframe Analiz
+# ═══════════════════════════════════════════════════════════════
+
+def get_multi_timeframe(tickers: list = None) -> dict:
+    """
+    Birden fazla zaman diliminde teknik analiz.
+    1 saatlik, 4 saatlik ve günlük mumlar ile timeframe confluence.
+
+    Returns:
+        {
+          "AAPL": {
+            "1h": {"ema9": ..., "rsi14": ..., "trend": ..., "macd": ...},
+            "4h": {"ema9": ..., "rsi14": ..., "trend": ..., "macd": ...},
+            "1d": {"ema9": ..., "rsi14": ..., "trend": ..., "macd": ...},
+            "confluence": "strong_bullish" | "bullish" | "mixed" | "bearish" | "strong_bearish",
+            "confluence_score": 85,
+          }
+        }
+    """
+    try:
+        from alpaca.data.historical import StockHistoricalDataClient
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame
+
+        client = StockHistoricalDataClient(
+            api_key=_get("ALPACA_API_KEY"),
+            secret_key=_get("ALPACA_SECRET_KEY"),
+        )
+
+        symbols = tickers or WATCHLIST
+        end = datetime.now(timezone.utc)
+        result = {}
+
+        timeframes = [
+            ("1h", TimeFrame.Hour, timedelta(days=10)),
+            ("4h", TimeFrame(4, "Hour"), timedelta(days=30)),
+            ("1d", TimeFrame.Day, timedelta(days=LOOKBACK_DAYS)),
+        ]
+
+        for tf_label, tf_enum, lookback in timeframes:
+            try:
+                req = StockBarsRequest(
+                    symbol_or_symbols=symbols,
+                    timeframe=tf_enum,
+                    start=end - lookback,
+                    end=end,
+                    feed="iex",
+                )
+                bars = client.get_stock_bars(req)
+
+                for ticker in symbols:
+                    try:
+                        ticker_bars = bars[ticker]
+                        if len(ticker_bars) < 5:
+                            continue
+
+                        closes = [float(b.close) for b in ticker_bars]
+                        highs = [float(b.high) for b in ticker_bars]
+                        lows = [float(b.low) for b in ticker_bars]
+
+                        ema9 = _ema(closes, 9)
+                        ema21 = _ema(closes, 21)
+                        ema50 = _ema(closes, min(50, len(closes)))
+                        rsi14 = _rsi(closes, 14)
+                        macd_data = _macd(closes)
+                        trend = _detect_trend(closes, ema9, ema21, ema50)
+
+                        if ticker not in result:
+                            result[ticker] = {}
+
+                        result[ticker][tf_label] = {
+                            "ema9": round(ema9, 2),
+                            "ema21": round(ema21, 2),
+                            "rsi14": round(rsi14, 1),
+                            "trend": trend,
+                            "macd": macd_data["macd"],
+                            "macd_histogram": macd_data["histogram"],
+                            "macd_cross": macd_data["cross"],
+                            "price": round(closes[-1], 2),
+                        }
+                    except Exception:
+                        continue
+            except Exception:
+                continue
+
+        # Confluence hesapla
+        for ticker, tf_data in result.items():
+            result[ticker]["confluence"] = _calc_confluence(tf_data)
+
+        return result
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _calc_confluence(tf_data: dict) -> dict:
+    """
+    Timeframe confluence: tüm zaman dilimlerindeki trend uyumunu ölç.
+    Üç TF de aynı yönde = strong, iki TF = moderate, karışık = mixed.
+    """
+    trend_scores = {"strong_uptrend": 2, "uptrend": 1, "sideways": 0, "downtrend": -1, "strong_downtrend": -2}
+    total = 0
+    count = 0
+
+    for tf in ("1h", "4h", "1d"):
+        if tf in tf_data:
+            trend = tf_data[tf].get("trend", "sideways")
+            total += trend_scores.get(trend, 0)
+            # MACD bonus
+            hist = tf_data[tf].get("macd_histogram", 0)
+            if hist > 0:
+                total += 0.5
+            elif hist < 0:
+                total -= 0.5
+            count += 1
+
+    if count == 0:
+        return {"direction": "unknown", "score": 50, "alignment": 0}
+
+    avg = total / count
+    # -3 ile +3 arası → 0-100'e çevir
+    score = round(max(0, min(100, (avg + 3) / 6 * 100)))
+
+    if avg >= 2.0:
+        direction = "strong_bullish"
+    elif avg >= 1.0:
+        direction = "bullish"
+    elif avg <= -2.0:
+        direction = "strong_bearish"
+    elif avg <= -1.0:
+        direction = "bearish"
+    else:
+        direction = "mixed"
+
+    return {"direction": direction, "score": score, "alignment": round(avg, 1)}
+
+
+# ═══════════════════════════════════════════════════════════════
+# V3: Korelasyon Matrisi
+# ═══════════════════════════════════════════════════════════════
+
+def get_correlation_matrix(tickers: list = None) -> dict:
+    """
+    Hisseler arası korelasyon matrisi.
+    Günlük getirilerin Pearson korelasyonunu hesaplar.
+
+    Returns:
+        {
+          "matrix": {"AAPL": {"MSFT": 0.85, "NVDA": 0.72, ...}, ...},
+          "high_correlations": [{"pair": "AAPL-MSFT", "corr": 0.85}, ...],
+          "diversification_score": 65,
+        }
+    """
+    try:
+        from alpaca.data.historical import StockHistoricalDataClient
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame
+
+        client = StockHistoricalDataClient(
+            api_key=_get("ALPACA_API_KEY"),
+            secret_key=_get("ALPACA_SECRET_KEY"),
+        )
+
+        symbols = tickers or [t for t in WATCHLIST if t not in ("SPY", "QQQ")]
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=60)
+
+        req = StockBarsRequest(
+            symbol_or_symbols=symbols,
+            timeframe=TimeFrame.Day,
+            start=start, end=end, feed="iex",
+        )
+        bars = client.get_stock_bars(req)
+
+        # Günlük getiri hesapla
+        returns = {}
+        for ticker in symbols:
+            try:
+                ticker_bars = bars[ticker]
+                closes = [float(b.close) for b in ticker_bars]
+                if len(closes) < 10:
+                    continue
+                daily_returns = [(closes[i] - closes[i-1]) / closes[i-1] for i in range(1, len(closes))]
+                returns[ticker] = daily_returns
+            except Exception:
+                continue
+
+        # Korelasyon matrisi
+        tickers_with_data = list(returns.keys())
+        matrix = {}
+        high_corrs = []
+
+        for i, t1 in enumerate(tickers_with_data):
+            matrix[t1] = {}
+            for j, t2 in enumerate(tickers_with_data):
+                if i == j:
+                    matrix[t1][t2] = 1.0
+                    continue
+                corr = _pearson_correlation(returns[t1], returns[t2])
+                matrix[t1][t2] = corr
+                if i < j and abs(corr) >= 0.7:
+                    high_corrs.append({"pair": f"{t1}-{t2}", "corr": corr})
+
+        high_corrs.sort(key=lambda x: abs(x["corr"]), reverse=True)
+
+        # Diversifikasyon skoru: düşük korelasyon = yüksek skor
+        if len(high_corrs) > 0:
+            avg_high = sum(abs(c["corr"]) for c in high_corrs) / len(high_corrs)
+            div_score = round(max(0, (1 - avg_high) * 100))
+        else:
+            div_score = 90  # Az korelasyon = iyi
+
+        return {
+            "matrix": matrix,
+            "high_correlations": high_corrs[:10],
+            "diversification_score": div_score,
+            "tickers": tickers_with_data,
+        }
+
+    except Exception as e:
+        return {"error": str(e), "matrix": {}, "high_correlations": [], "diversification_score": 0}
+
+
+def _pearson_correlation(x: list, y: list) -> float:
+    """Pearson korelasyon katsayısı hesapla."""
+    n = min(len(x), len(y))
+    if n < 5:
+        return 0.0
+
+    x = x[-n:]
+    y = y[-n:]
+
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+
+    num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+    den_x = math.sqrt(sum((xi - mean_x) ** 2 for xi in x))
+    den_y = math.sqrt(sum((yi - mean_y) ** 2 for yi in y))
+
+    if den_x == 0 or den_y == 0:
+        return 0.0
+
+    return round(num / (den_x * den_y), 2)

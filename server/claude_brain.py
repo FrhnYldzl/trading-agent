@@ -30,7 +30,8 @@ _env_vals = dotenv_values(_env_path)
 def _get(key): return os.getenv(key) or _env_vals.get(key, "")
 
 client = anthropic.Anthropic(api_key=_get("ANTHROPIC_API_KEY"))
-MODEL = "claude-sonnet-4-6"
+from config import AI_MODEL
+MODEL = AI_MODEL
 
 # ─────────────────────────────────────────────────────────────────
 # Ana Karar Motoru
@@ -141,6 +142,11 @@ def run_brain(
                 "rsi14": v.get("rsi14"),
                 "volume_ratio": v.get("volume_ratio"),
                 "trend": v.get("trend"),
+                "macd": v.get("macd"),
+                "macd_histogram": v.get("macd_histogram"),
+                "macd_cross": v.get("macd_cross"),
+                "bb_position": v.get("bb_position"),
+                "bb_width": v.get("bb_width"),
             }
             for k, v in market_data.items()
             if isinstance(v, dict) and not k.startswith("_")
@@ -225,11 +231,21 @@ PDT Day Trades Remaining: {pdt_left}/3
 ### Multi-Step Reasoning (REQUIRED for every decision):
 For each ticker, answer these questions internally:
 1. What is the TREND? (EMA structure: 9>21>50 = strong uptrend)
-2. What is the MOMENTUM? (RSI band, volume confirmation)
-3. Where is the RISK? (ATR-based stop, key support/resistance)
-4. What is the CATALYST? (why is this moving?)
-5. Does this ALIGN with the regime? (don't go long in a bear market)
-6. What is the R/R ratio? (minimum 1:2, prefer 1:3)
+2. What is the MOMENTUM? (RSI band, volume confirmation, MACD histogram direction)
+3. What does MACD say? (bullish_cross = buy signal, bearish_cross = sell signal, histogram growing = momentum increasing)
+4. What do BOLLINGER BANDS say? (BB_Pos<0.2 = oversold bounce opportunity, BB_Pos>0.8 = overbought risk, BB_Width high = breakout potential)
+5. Where is the RISK? (ATR-based stop, key support/resistance, Bollinger lower band as support)
+6. What is the CATALYST? (why is this moving?)
+7. Does this ALIGN with the regime? (don't go long in a bear market)
+8. What is the R/R ratio? (minimum 1:2, prefer 1:3)
+
+### SIGNAL CONFLUENCE (V3):
+Strong setups require MULTIPLE confirmations:
+- MACD bullish cross + RSI in 40-65 zone + uptrend = HIGH confidence
+- MACD bearish cross + RSI > 70 + downtrend = SELL signal
+- Bollinger squeeze (low BB_Width) then expansion = breakout imminent
+- Price at lower BB + bullish MACD = mean reversion buy
+- Price at upper BB + bearish MACD divergence = potential reversal
 
 ## RISK RULES (ABSOLUTE — NEVER VIOLATE)
 1. NEVER risk more than 2% of total equity per trade
@@ -310,6 +326,8 @@ def _format_market_data(market_data: dict) -> str:
             continue
         if "price" not in d:
             continue
+        macd_info = f"MACD={d.get('macd',0)} Hist={d.get('macd_histogram',0)} {d.get('macd_cross','')}"
+        bb_info = f"BB_Pos={d.get('bb_position','?')} BB_W={d.get('bb_width','?')}"
         lines.append(
             f"  {ticker}: ${d['price']} ({d['change_pct']:+.1f}%) "
             f"Gap:{d.get('gap_pct',0):+.1f}% "
@@ -317,6 +335,7 @@ def _format_market_data(market_data: dict) -> str:
             f"| RSI={d['rsi14']} ATR%={d.get('atr_pct','?')} "
             f"| Vol={d.get('volume_ratio',0):.1f}x "
             f"| VWAP=${d.get('vwap','?')} "
+            f"| {macd_info} | {bb_info} "
             f"| Trend: {d.get('trend','?')} Signal: {d['signal']} "
             f"| MomentumScore: {d.get('momentum_score',50)}"
         )

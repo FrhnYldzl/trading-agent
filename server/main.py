@@ -39,7 +39,7 @@ from trade_journal import (
 from risk_manager import RiskManager
 from ai_advisor import analyze_trade, review_strategy, is_enabled
 import scheduler as sched
-from market_scanner import get_market_data, WATCHLIST
+from market_scanner import get_market_data, get_multi_timeframe, get_correlation_matrix, WATCHLIST
 import config as cfg
 
 _env_path = Path(__file__).parent.parent / ".env"
@@ -544,6 +544,20 @@ async def emergency_liquidate():
     result = await loop.run_in_executor(None, broker.emergency_liquidate)
     await manager.broadcast({"type": "emergency_liquidate", "result": result})
     return result
+
+
+@app.get("/api/multi-timeframe")
+async def multi_timeframe():
+    """V3: Multi-timeframe analiz — 1s, 4s, günlük confluence."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, get_multi_timeframe)
+
+
+@app.get("/api/correlation")
+async def correlation():
+    """V3: Korelasyon matrisi — portföy diversifikasyon analizi."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, get_correlation_matrix)
 
 
 @app.get("/api/health")

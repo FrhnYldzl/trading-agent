@@ -688,6 +688,69 @@
     </div>
   </div>
 
+  <!-- V3: Analytics Grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px" id="v3-analytics">
+
+    <!-- Risk Metrikleri -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">Risk Metrikleri</div>
+      </div>
+      <div class="panel-body" id="risk-metrics-body" style="padding:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+          <div><span style="color:var(--muted)">Sharpe:</span> <span id="rm-sharpe" style="font-weight:700">—</span></div>
+          <div><span style="color:var(--muted)">Sortino:</span> <span id="rm-sortino" style="font-weight:700">—</span></div>
+          <div><span style="color:var(--muted)">VaR 95%:</span> <span id="rm-var" style="font-weight:700">—</span></div>
+          <div><span style="color:var(--muted)">Max DD:</span> <span id="rm-maxdd" style="font-weight:700">—</span></div>
+          <div><span style="color:var(--muted)">Win Rate:</span> <span id="rm-winrate" style="font-weight:700">—</span></div>
+          <div><span style="color:var(--muted)">Volatilite:</span> <span id="rm-vol" style="font-weight:700">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sektör Dağılımı -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">Sektör Dağılımı</div>
+      </div>
+      <div class="panel-body" id="sector-body" style="padding:12px">
+        <div id="sector-bars" style="font-size:11px"></div>
+        <div id="sector-warnings" style="margin-top:6px"></div>
+      </div>
+    </div>
+
+    <!-- Korelasyon Özeti -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">Korelasyon Analizi</div>
+        <button class="icon-btn" onclick="loadCorrelation()" title="Yenile" style="font-size:10px;padding:2px 6px">&#x21bb;</button>
+      </div>
+      <div class="panel-body" id="correlation-body" style="padding:12px">
+        <div style="font-size:11px;color:var(--muted)">Yükleniyor...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V3: AI Chat + Acil Durum -->
+  <div style="display:grid;grid-template-columns:1fr auto;gap:16px;margin-bottom:20px">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">AI Chat — Claude'a Sor</div>
+      </div>
+      <div class="panel-body" style="padding:12px">
+        <div id="ai-chat-messages" style="max-height:120px;overflow-y:auto;margin-bottom:8px;font-size:12px"></div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="ai-chat-input" placeholder="Portföyümü nasıl optimize edebilirim?" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px" onkeydown="if(event.key==='Enter')sendAIChat()">
+          <button onclick="sendAIChat()" style="padding:8px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">Gönder</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:160px">
+      <button onclick="emergencyLiquidate()" style="padding:12px;background:var(--red);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:.5px">ACIL LiKiDASYON</button>
+      <button onclick="loadAllV3()" style="padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">Tüm Verileri Yenile</button>
+    </div>
+  </div>
+
   <!-- Main Grid -->
   <div class="main-grid">
 
@@ -1254,6 +1317,8 @@ function renderRecommendations(d) {
             ${price ? `<span>${price}</span>` : ''}
             ${momentum != null ? `<span>M:${momentum}</span>` : ''}
             ${trend ? `<span>${trend}</span>` : ''}
+            ${snap && snap.macd_cross && snap.macd_cross !== 'none' ? `<span style="color:${snap.macd_cross==='bullish_cross'?'var(--green)':'var(--red)'}">${snap.macd_cross==='bullish_cross'?'MACD▲':'MACD▼'}</span>` : ''}
+            ${snap && snap.bb_position != null ? `<span>BB:${(snap.bb_position*100).toFixed(0)}%</span>` : ''}
           </div>
           ${conf > 0 ? `
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
@@ -1310,6 +1375,156 @@ function renderRecommendations(d) {
 
 // Her 5 dakikada bir önerileri yenile
 setInterval(loadRecommendations, 5 * 60 * 1000);
+
+// ─── V3: Risk Metrikleri ─────────────────────────────────────────
+
+async function loadRiskMetrics() {
+  try {
+    const d = await (await fetch('/api/risk-metrics')).json();
+    if (d.error) {
+      document.getElementById('rm-sharpe').textContent = '—';
+      document.getElementById('rm-sortino').textContent = '—';
+      document.getElementById('rm-var').textContent = '—';
+      document.getElementById('rm-maxdd').textContent = '—';
+      document.getElementById('rm-winrate').textContent = '—';
+      document.getElementById('rm-vol').textContent = '—';
+      return;
+    }
+    const sc = v => v > 1 ? 'var(--green)' : v > 0 ? 'var(--yellow)' : 'var(--red)';
+    document.getElementById('rm-sharpe').innerHTML = `<span style="color:${sc(d.sharpe)}">${d.sharpe}</span>`;
+    document.getElementById('rm-sortino').innerHTML = `<span style="color:${sc(d.sortino)}">${d.sortino}</span>`;
+    document.getElementById('rm-var').innerHTML = `<span style="color:var(--red)">${d.var_95}%</span>`;
+    document.getElementById('rm-maxdd').innerHTML = `<span style="color:var(--red)">${d.max_drawdown}%</span>`;
+    document.getElementById('rm-winrate').innerHTML = `<span style="color:${d.win_rate>=50?'var(--green)':'var(--red)'}">${d.win_rate}%</span>`;
+    document.getElementById('rm-vol').textContent = d.volatility;
+  } catch(e) {}
+}
+
+// ─── V3: Sektör Dağılımı ─────────────────────────────────────────
+
+async function loadSectorExposure() {
+  try {
+    const d = await (await fetch('/api/sector-exposure')).json();
+    const bars = document.getElementById('sector-bars');
+    const warns = document.getElementById('sector-warnings');
+    const sectors = d.sectors || {};
+    const keys = Object.keys(sectors);
+
+    if (keys.length === 0) {
+      bars.innerHTML = '<span style="color:var(--muted)">Pozisyon yok</span>';
+      warns.innerHTML = '';
+      return;
+    }
+
+    const colors = {Technology:'#388bfd',Financial:'#d29922','Consumer Cyclical':'#3fb950',Communication:'#a371f7',ETF:'#8b949e',Unknown:'#484f58'};
+    bars.innerHTML = keys.map(s => {
+      const pct = sectors[s].pct;
+      const c = colors[s] || '#8b949e';
+      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="width:90px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s}</span>
+        <div style="flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden">
+          <div style="width:${Math.min(pct,100)}%;height:100%;background:${c};border-radius:3px"></div>
+        </div>
+        <span style="width:40px;text-align:right;font-weight:700;color:${pct>40?'var(--red)':c}">${pct}%</span>
+      </div>`;
+    }).join('');
+
+    warns.innerHTML = (d.warnings || []).map(w =>
+      `<div style="font-size:10px;color:var(--yellow);margin-top:2px">${w}</div>`
+    ).join('');
+  } catch(e) {}
+}
+
+// ─── V3: Korelasyon Analizi ──────────────────────────────────────
+
+async function loadCorrelation() {
+  const body = document.getElementById('correlation-body');
+  body.innerHTML = '<span style="font-size:11px;color:var(--muted)">Hesaplaniyor...</span>';
+  try {
+    const d = await (await fetch('/api/correlation')).json();
+    if (d.error) { body.innerHTML = `<span style="color:var(--red);font-size:11px">${d.error}</span>`; return; }
+
+    const score = d.diversification_score || 0;
+    const scoreColor = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
+    const highCorrs = d.high_correlations || [];
+
+    let html = `<div style="margin-bottom:8px">
+      <span style="color:var(--muted);font-size:11px">Diversifikasyon Skoru:</span>
+      <span style="font-size:18px;font-weight:700;color:${scoreColor};margin-left:6px">${score}/100</span>
+    </div>`;
+
+    if (highCorrs.length > 0) {
+      html += `<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Yüksek Korelasyonlar (>0.7):</div>`;
+      html += highCorrs.slice(0, 5).map(c => {
+        const color = c.corr > 0.85 ? 'var(--red)' : 'var(--yellow)';
+        return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">
+          <span>${c.pair}</span><span style="color:${color};font-weight:700">${c.corr}</span>
+        </div>`;
+      }).join('');
+    } else {
+      html += '<div style="font-size:11px;color:var(--green)">Yüksek korelasyon yok — iyi diversifikasyon</div>';
+    }
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<span style="color:var(--red);font-size:11px">Hata</span>'; }
+}
+
+// ─── V3: AI Chat ─────────────────────────────────────────────────
+
+async function sendAIChat() {
+  const input = document.getElementById('ai-chat-input');
+  const msgs = document.getElementById('ai-chat-messages');
+  const q = input.value.trim();
+  if (!q) return;
+
+  msgs.innerHTML += `<div style="margin-bottom:6px"><span style="color:var(--blue);font-weight:700">Sen:</span> ${q}</div>`;
+  input.value = '';
+  msgs.innerHTML += `<div style="margin-bottom:6px;color:var(--muted)" id="ai-typing">Claude düşünüyor...</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const res = await fetch('/api/scan-now', { method: 'POST' });
+    const d = await res.json();
+    const typing = document.getElementById('ai-typing');
+    if (typing) typing.remove();
+
+    const summary = d.market_summary || d.error || 'Yanıt alınamadı';
+    const regime = d.regime || '?';
+    msgs.innerHTML += `<div style="margin-bottom:6px"><span style="color:var(--green);font-weight:700">Claude:</span> [${regime.toUpperCase()}] ${summary}</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+
+    if (d.decisions) renderRecommendations(d);
+  } catch(e) {
+    const typing = document.getElementById('ai-typing');
+    if (typing) typing.remove();
+    msgs.innerHTML += `<div style="color:var(--red)">Hata: ${e.message}</div>`;
+  }
+}
+
+// ─── V3: Acil Likidasyon ─────────────────────────────────────────
+
+async function emergencyLiquidate() {
+  if (!confirm('TÜM POZİSYONLAR KAPATILACAK! Emin misiniz?')) return;
+  if (!confirm('SON UYARI: Bu işlem geri alınamaz. Devam?')) return;
+
+  try {
+    const res = await fetch('/api/emergency-liquidate', { method: 'POST' });
+    const d = await res.json();
+    alert(`Likidasyon: ${d.status} — ${d.count || 0} pozisyon kapatıldı`);
+    loadAccount();
+    loadTrades();
+  } catch(e) { alert('Likidasyon hatası: ' + e.message); }
+}
+
+// ─── V3: Tüm Verileri Yenile ────────────────────────────────────
+
+function loadAllV3() {
+  loadRiskMetrics();
+  loadSectorExposure();
+  loadCorrelation();
+}
+
+// Sayfa yüklenince V3 verilerini de çek
+setTimeout(loadAllV3, 2000);
 
 // ─── İşlem Onay/Red ─────────────────────────────────────────────
 
