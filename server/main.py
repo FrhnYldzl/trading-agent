@@ -41,6 +41,9 @@ from ai_advisor import analyze_trade, review_strategy, is_enabled
 import scheduler as sched
 from market_scanner import get_market_data, get_multi_timeframe, get_correlation_matrix, WATCHLIST
 from backtester import run_backtest, run_portfolio_backtest
+from regime_detector import detect_regime
+from news_sentiment import get_market_sentiment, get_ticker_sentiment
+from anomaly_detector import detect_anomalies
 import config as cfg
 
 _env_path = Path(__file__).parent.parent / ".env"
@@ -612,12 +615,48 @@ async def backtest_portfolio(req: PortfolioBacktestRequest):
     return result
 
 
+# ─── V3.3: Regime + Sentiment + Anomaly ────────────────────────
+
+@app.get("/api/regime")
+async def regime():
+    """V3.3: Kantitatif rejim tespiti — volatilite + trend + momentum + breadth."""
+    loop = asyncio.get_event_loop()
+    market_data = await loop.run_in_executor(None, get_market_data)
+    if "error" in market_data:
+        raise HTTPException(status_code=500, detail=market_data["error"])
+    return await loop.run_in_executor(None, detect_regime, market_data)
+
+
+@app.get("/api/news-sentiment")
+async def news_sentiment():
+    """V3.3: Tüm watchlist haber sentiment analizi."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, get_market_sentiment, WATCHLIST)
+
+
+@app.get("/api/news-sentiment/{ticker}")
+async def news_sentiment_ticker(ticker: str):
+    """V3.3: Tek ticker haber sentiment analizi."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, get_ticker_sentiment, ticker.upper())
+
+
+@app.get("/api/anomalies")
+async def anomalies():
+    """V3.3: Anormal piyasa davranışı tespiti."""
+    loop = asyncio.get_event_loop()
+    market_data = await loop.run_in_executor(None, get_market_data)
+    if "error" in market_data:
+        raise HTTPException(status_code=500, detail=market_data["error"])
+    return await loop.run_in_executor(None, detect_anomalies, market_data)
+
+
 @app.get("/api/health")
 async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "3.2",
+        "version": "3.3",
         "ai_enabled": is_enabled(),
         "regime": last_scan.get("regime", "unknown"),
         "session_mode": last_scan.get("session_mode", "unknown"),

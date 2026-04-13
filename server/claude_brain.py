@@ -89,6 +89,30 @@ def run_brain(
     market_open = meta.get("market_open", False)
     detected_regime = meta.get("regime", "unknown")
 
+    # V3.3: Kantitatif rejim + anomali + sentiment context
+    quant_context = ""
+    try:
+        from regime_detector import detect_regime
+        quant = detect_regime(market_data)
+        quant_context += f"\n## QUANTITATIVE REGIME ANALYSIS (V3.3)\n"
+        quant_context += f"Quant Regime: {quant['regime']} (score: {quant['quant_score']}/100, confidence: {quant['confidence']}%)\n"
+        quant_context += f"Analysis: {quant['reasoning']}\n"
+        if quant['regime'] != detected_regime and detected_regime != "unknown":
+            quant_context += f"NOTE: Quant regime ({quant['regime']}) differs from technical regime ({detected_regime}) — investigate divergence.\n"
+    except Exception:
+        pass
+
+    try:
+        from anomaly_detector import detect_anomalies
+        anomalies = detect_anomalies(market_data)
+        if anomalies.get("anomaly_count", 0) > 0:
+            quant_context += f"\n## ANOMALY ALERTS (V3.3)\n"
+            quant_context += f"Risk Level: {anomalies['risk_level'].upper()} — {anomalies['anomaly_count']} anomalies detected\n"
+            for a in anomalies["anomalies"][:5]:
+                quant_context += f"  - [{a['severity'].upper()}] {a['ticker']}: {a['detail']}\n"
+    except Exception:
+        pass
+
     # Portföy özetini hazirla
     positions_text = _format_positions(portfolio)
     market_text    = _format_market_data(market_data)
@@ -118,6 +142,7 @@ def run_brain(
         market_open=market_open,
         auto_execute=auto_execute,
         learning_context=learning_context,
+        quant_context=quant_context,
     )
 
     try:
@@ -164,7 +189,7 @@ def run_brain(
 def _build_master_prompt(
     cash, equity, pdt_left, positions_text, market_text,
     trades_text, ranking_text, detected_regime, market_open, auto_execute,
-    learning_context=""
+    learning_context="", quant_context=""
 ) -> str:
     market_status = "OPEN" if market_open else "CLOSED (pre/post analysis mode)"
 
@@ -200,6 +225,7 @@ PDT Day Trades Remaining: {pdt_left}/3
 ## RECENT TRADE HISTORY
 {trades_text}
 {learning_section}
+{quant_context}
 
 ## STRATEGY FRAMEWORK
 

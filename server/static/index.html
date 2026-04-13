@@ -731,6 +731,43 @@
     </div>
   </div>
 
+  <!-- V3.3: Rejim + Sentiment + Anomali -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px" id="v33-analytics">
+
+    <!-- Kantitatif Rejim -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">Kantitatif Rejim</div>
+        <button class="icon-btn" onclick="loadRegime()" title="Yenile" style="font-size:10px;padding:2px 6px">&#x21bb;</button>
+      </div>
+      <div class="panel-body" id="regime-body" style="padding:12px">
+        <div style="font-size:11px;color:var(--muted)">Yükleniyor...</div>
+      </div>
+    </div>
+
+    <!-- Haber Sentiment -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">Haber Sentiment</div>
+        <button class="icon-btn" onclick="loadSentiment()" title="Yenile" style="font-size:10px;padding:2px 6px">&#x21bb;</button>
+      </div>
+      <div class="panel-body" id="sentiment-body" style="padding:12px">
+        <div style="font-size:11px;color:var(--muted)">Yükleniyor...</div>
+      </div>
+    </div>
+
+    <!-- Anomali Tespiti -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title" style="font-size:12px">Anomali Tespiti</div>
+        <button class="icon-btn" onclick="loadAnomalies()" title="Yenile" style="font-size:10px;padding:2px 6px">&#x21bb;</button>
+      </div>
+      <div class="panel-body" id="anomaly-body" style="padding:12px">
+        <div style="font-size:11px;color:var(--muted)">Yükleniyor...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- V3: AI Chat + Acil Durum -->
   <div style="display:grid;grid-template-columns:1fr auto;gap:16px;margin-bottom:20px">
     <div class="panel">
@@ -1591,6 +1628,133 @@ async function emergencyLiquidate() {
   } catch(e) { alert('Likidasyon hatası: ' + e.message); }
 }
 
+// ─── V3.3: Kantitatif Rejim ─────────────────────────────────────
+
+async function loadRegime() {
+  const body = document.getElementById('regime-body');
+  body.innerHTML = '<span style="font-size:11px;color:var(--muted)">Hesaplanıyor...</span>';
+  try {
+    const d = await (await fetch('/api/regime')).json();
+    if (d.error) { body.innerHTML = `<span style="color:var(--red);font-size:11px">${d.error}</span>`; return; }
+
+    const regimeColors = { bull_strong: 'var(--green)', bull: '#4ade80', neutral: 'var(--yellow)', bear: '#f97316', bear_strong: 'var(--red)' };
+    const color = regimeColors[d.regime] || 'var(--muted)';
+    const conf = d.confidence || 0;
+
+    let html = `<div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:22px;font-weight:800;color:${color};letter-spacing:1px">${(d.regime || '?').toUpperCase()}</div>
+      <div style="font-size:11px;color:var(--muted)">Skor: ${d.quant_score}/100 | Güven: %${conf}</div>
+    </div>`;
+
+    // Bileşenler
+    const comp = d.components || {};
+    const bars = [
+      { label: 'Trend', score: comp.trend?.score || 50 },
+      { label: 'Momentum', score: comp.momentum?.score || 50 },
+      { label: 'Volatilite', score: comp.volatility?.score || 50 },
+      { label: 'Breadth', score: comp.breadth?.score || 50 },
+    ];
+    bars.forEach(b => {
+      const barColor = b.score >= 60 ? 'var(--green)' : b.score >= 40 ? 'var(--yellow)' : 'var(--red)';
+      html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px">
+        <span style="width:65px;color:var(--muted)">${b.label}</span>
+        <div style="flex:1;background:var(--bg);border-radius:3px;height:8px;overflow:hidden">
+          <div style="width:${b.score}%;height:100%;background:${barColor};border-radius:3px"></div>
+        </div>
+        <span style="width:28px;text-align:right;font-weight:600">${Math.round(b.score)}</span>
+      </div>`;
+    });
+
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<span style="color:var(--red);font-size:11px">Hata</span>'; }
+}
+
+// ─── V3.3: Haber Sentiment ──────────────────────────────────────
+
+async function loadSentiment() {
+  const body = document.getElementById('sentiment-body');
+  body.innerHTML = '<span style="font-size:11px;color:var(--muted)">Haberler taranıyor...</span>';
+  try {
+    const d = await (await fetch('/api/news-sentiment')).json();
+    if (d.error) { body.innerHTML = `<span style="color:var(--red);font-size:11px">${d.error}</span>`; return; }
+
+    const sentColors = { bullish: 'var(--green)', slightly_bullish: '#4ade80', neutral: 'var(--yellow)', slightly_bearish: '#f97316', bearish: 'var(--red)' };
+    const color = sentColors[d.overall_sentiment] || 'var(--muted)';
+
+    let html = `<div style="margin-bottom:8px">
+      <span style="font-size:16px;font-weight:700;color:${color}">${(d.overall_sentiment || '?').toUpperCase()}</span>
+      <span style="font-size:11px;color:var(--muted);margin-left:6px">(skor: ${d.overall_score})</span>
+    </div>`;
+
+    // Öne çıkan haberler
+    const notable = d.notable_headlines || [];
+    if (notable.length > 0) {
+      html += '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Dikkat Çeken Haberler:</div>';
+      notable.slice(0, 4).forEach(n => {
+        const nColor = n.sentiment > 0 ? 'var(--green)' : 'var(--red)';
+        const icon = n.sentiment > 0 ? '▲' : '▼';
+        html += `<div style="font-size:10px;padding:3px 0;border-bottom:1px solid var(--border)">
+          <span style="color:${nColor};font-weight:700">${icon} ${n.ticker}</span>
+          <span style="color:var(--text)"> ${n.headline.substring(0, 60)}${n.headline.length > 60 ? '...' : ''}</span>
+        </div>`;
+      });
+    } else {
+      html += '<div style="font-size:11px;color:var(--muted)">Dikkat çekici haber yok</div>';
+    }
+
+    // Per-ticker mini grid
+    const perTicker = d.per_ticker || {};
+    const entries = Object.entries(perTicker).filter(([,v]) => v.label !== 'error').slice(0, 8);
+    if (entries.length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">';
+      entries.forEach(([tk, v]) => {
+        const tColor = v.avg_sentiment > 0 ? 'var(--green)' : v.avg_sentiment < 0 ? 'var(--red)' : 'var(--muted)';
+        html += `<span style="font-size:9px;padding:2px 5px;border-radius:4px;background:var(--bg);color:${tColor};font-weight:600">${tk} ${v.avg_sentiment > 0 ? '+' : ''}${v.avg_sentiment}</span>`;
+      });
+      html += '</div>';
+    }
+
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<span style="color:var(--red);font-size:11px">Hata</span>'; }
+}
+
+// ─── V3.3: Anomali Tespiti ──────────────────────────────────────
+
+async function loadAnomalies() {
+  const body = document.getElementById('anomaly-body');
+  body.innerHTML = '<span style="font-size:11px;color:var(--muted)">Taranıyor...</span>';
+  try {
+    const d = await (await fetch('/api/anomalies')).json();
+    if (d.error) { body.innerHTML = `<span style="color:var(--red);font-size:11px">${d.error}</span>`; return; }
+
+    const riskColors = { normal: 'var(--green)', moderate: 'var(--yellow)', elevated: '#f97316', high: 'var(--red)', extreme: '#dc2626' };
+    const color = riskColors[d.risk_level] || 'var(--muted)';
+
+    let html = `<div style="margin-bottom:8px">
+      <span style="font-size:14px;font-weight:700;color:${color}">${(d.risk_level || 'normal').toUpperCase()}</span>
+      <span style="font-size:11px;color:var(--muted);margin-left:6px">${d.anomaly_count} anomali</span>
+    </div>`;
+
+    const anomalies = d.anomalies || [];
+    if (anomalies.length > 0) {
+      anomalies.slice(0, 5).forEach(a => {
+        const sevColors = { critical: '#dc2626', high: 'var(--red)', medium: 'var(--yellow)', low: 'var(--muted)' };
+        const sColor = sevColors[a.severity] || 'var(--muted)';
+        const icons = { volume_spike: '📊', price_shock: '⚡', gap_anomaly: '🔺', rsi_extreme: '📉', bb_breakout: '💥', volatility_explosion: '🌪️' };
+        html += `<div style="font-size:10px;padding:3px 0;border-bottom:1px solid var(--border)">
+          <span style="color:${sColor};font-weight:700">${icons[a.type] || '⚠️'} ${a.severity.toUpperCase()}</span>
+          <span style="font-weight:600"> ${a.ticker}:</span>
+          <span style="color:var(--text)"> ${a.detail.substring(0, 70)}</span>
+        </div>`;
+      });
+    } else {
+      html += '<div style="font-size:11px;color:var(--green)">Anomali tespit edilmedi — normal koşullar</div>';
+    }
+
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<span style="color:var(--red);font-size:11px">Hata</span>'; }
+}
+
 // ─── V3.2: Backtest ─────────────────────────────────────────────
 
 async function runBacktest() {
@@ -1762,6 +1926,9 @@ function loadAllV3() {
   loadRiskMetrics();
   loadSectorExposure();
   loadCorrelation();
+  loadRegime();
+  loadSentiment();
+  loadAnomalies();
 }
 
 // Sayfa yüklenince V3 verilerini de çek
