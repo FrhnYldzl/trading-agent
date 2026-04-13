@@ -665,7 +665,7 @@ async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "4.5",
+        "version": "4.5.1",
         "ai_enabled": is_enabled(),
         "gemini_enabled": gemini_enabled(),
         "regime": last_scan.get("regime", "unknown"),
