@@ -129,9 +129,25 @@ def run_scan(broker=None, auto_execute: bool = False):
     # 5. DB'ye logla
     _log_scan(result)
 
-    # 6. Otomatik islem (sadece piyasa acikken + auto_execute=True)
+    # 6. Gemini Audit (Council modu — iki AI onaylarsa işlem yapılır)
+    audit_results = []
+    try:
+        from gemini_auditor import audit_decisions, is_enabled as gemini_enabled
+        if gemini_enabled() and result.get("decisions"):
+            audit_results = audit_decisions(
+                decisions=result.get("decisions", []),
+                market_data=market_data,
+                portfolio=portfolio,
+                regime=result.get("regime", "unknown"),
+            )
+    except Exception as e:
+        print(f"[Gemini Audit] Hata: {e}")
+
+    _last_scan["audit_results"] = audit_results
+
+    # 7. Otomatik islem (sadece piyasa acikken + auto_execute=True)
     if auto_execute and market_open and broker:
-        _execute_decisions(result.get("decisions", []), broker, portfolio, market_data)
+        _execute_decisions(result.get("decisions", []), broker, portfolio, market_data, audit_results)
 
     actionable = [d for d in result.get("decisions", [])
                   if d.get("action") not in ("hold", "watch")]
@@ -280,14 +296,20 @@ def _get_portfolio(broker) -> dict:
         return {"cash": 0, "equity": 0, "positions": [], "error": str(e)}
 
 
-def _execute_decisions(decisions: list, broker, portfolio: dict, market_data: dict):
+def _execute_decisions(decisions: list, broker, portfolio: dict, market_data: dict, audit_results: list = None):
     """
-    V2: Aksiyon kararlarini Alpaca'ya ilet.
+    V4.5: Aksiyon kararlarini Alpaca'ya ilet — Gemini Council onayı ile.
     Claude'un güven skoru + rejime göre dinamik pozisyon boyutlandirma.
+    Gemini REJECT ise işlem yapılmaz.
     """
     from risk_manager import RiskManager
     risk = RiskManager(max_risk_pct=0.02)
     equity = portfolio.get("equity", 0)
+
+    # Audit sonuçlarını ticker bazlı indexle
+    audit_map = {}
+    for a in (audit_results or []):
+        audit_map[a.get("ticker", "")] = a
 
     for d in decisions:
         action     = d.get("action", "hold")
@@ -300,6 +322,22 @@ def _execute_decisions(decisions: list, broker, portfolio: dict, market_data: di
         if confidence < 6:
             print(f"[Auto] {ticker} atlandı — güven skoru düsük ({confidence}/10)")
             continue
+
+        # V4.5: Gemini Council kontrolü
+        audit = audit_map.get(ticker)
+        if audit:
+            verdict = audit.get("audit_verdict", "APPROVE")
+            if verdict == "REJECT":
+                print(f"[Council] {ticker} REDDEDİLDİ — Gemini: {audit.get('reasoning', '?')}")
+                continue
+            elif verdict == "MODIFY":
+                # Gemini'nin önerdiği parametreleri uygula
+                mods = audit.get("modified_params", {})
+                if "position_size_pct" in mods:
+                    d["position_size_pct"] = mods["position_size_pct"]
+                print(f"[Council] {ticker} MODİFİYE — Gemini: {audit.get('reasoning', '?')}")
+            else:
+                print(f"[Council] {ticker} ONAYLANDI — Gemini + Claude hemfikir")
 
         try:
             # Piyasa verisinden fiyat ve ATR al

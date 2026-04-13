@@ -112,6 +112,14 @@ DEFAULT_RR_RATIO = _get("DEFAULT_RR_RATIO", 2.0, float)          # Risk/Reward o
 
 AI_APPROVAL_REQUIRED = _get("AI_APPROVAL_REQUIRED", "false").lower() in ("true", "1", "yes")
 
+# ═══════════════════════════════════════════════════════════════
+# GEMINI COUNCIL (V4.5)
+# ═══════════════════════════════════════════════════════════════
+
+GEMINI_API_KEY = _get("GEMINI_API_KEY", "")
+GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-2.0-flash")
+COUNCIL_ENABLED = _get("COUNCIL_ENABLED", "true").lower() in ("true", "1", "yes")
+
 
 def get_all() -> dict:
     """Tüm konfigürasyonu döndür (dashboard için)."""
@@ -132,4 +140,6 @@ def get_all() -> dict:
         "regime_multipliers": REGIME_MULTIPLIERS,
         "regime_max_invested": REGIME_MAX_INVESTED,
         "sector_map": SECTOR_MAP,
+        "gemini_model": GEMINI_MODEL,
+        "council_enabled": COUNCIL_ENABLED,
     }

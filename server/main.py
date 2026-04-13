@@ -44,6 +44,7 @@ from backtester import run_backtest, run_portfolio_backtest
 from regime_detector import detect_regime
 from news_sentiment import get_market_sentiment, get_ticker_sentiment
 from anomaly_detector import detect_anomalies
+from gemini_auditor import get_last_audit, is_enabled as gemini_enabled
 import config as cfg
 
 _env_path = Path(__file__).parent.parent / ".env"
@@ -651,13 +652,22 @@ async def anomalies():
     return await loop.run_in_executor(None, detect_anomalies, market_data)
 
 
+# ─── V4.5: Gemini Council ──────────────────────────────────────
+
+@app.get("/api/audit")
+async def audit():
+    """V4.5: Son Gemini audit sonuçları."""
+    return get_last_audit()
+
+
 @app.get("/api/health")
 async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "3.3",
+        "version": "4.5",
         "ai_enabled": is_enabled(),
+        "gemini_enabled": gemini_enabled(),
         "regime": last_scan.get("regime", "unknown"),
         "session_mode": last_scan.get("session_mode", "unknown"),
         "last_scan": last_scan.get("timestamp"),
