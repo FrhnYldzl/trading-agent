@@ -45,6 +45,12 @@ from regime_detector import detect_regime
 from news_sentiment import get_market_sentiment, get_ticker_sentiment
 from anomaly_detector import detect_anomalies
 from gemini_auditor import get_last_audit, is_enabled as gemini_enabled
+from monte_carlo import run_monte_carlo, run_stress_scenarios, get_backtest_returns
+from strategy_optimizer import optimize_strategy, quick_optimize
+from trade_journal_v2 import (
+    init_journal_v2, log_trade_v2, get_journal_v2,
+    get_journal_analytics, export_journal_csv,
+)
 import config as cfg
 
 _env_path = Path(__file__).parent.parent / ".env"
@@ -84,6 +90,7 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    init_journal_v2()
     # V2: Scheduler — her 10 dk tarama, piyasa acik/kapali farketmez
     sched.start(broker=broker, auto_execute=False, interval_minutes=10)
     print("AI Trading Agent V2 baslatildi >> http://localhost:8000")
@@ -660,12 +667,127 @@ async def audit():
     return get_last_audit()
 
 
+# ─── V5: Monte Carlo Stress Test ─────────────────────────────────
+
+class MonteCarloRequest(BaseModel):
+    ticker: str = Field("SPY", description="Returns source ticker")
+    days_history: int = Field(365, ge=90, le=1825)
+    initial_capital: float = Field(100000, ge=1000)
+    num_simulations: int = Field(1000, ge=100, le=5000)
+    num_days: int = Field(252, ge=30, le=756)
+    ruin_threshold: float = Field(0.30, ge=0.1, le=0.8)
+
+@app.post("/api/monte-carlo")
+async def monte_carlo(req: MonteCarloRequest):
+    """V5: Monte Carlo stress test — bootstrap ile portfoy simulasyonu."""
+    loop = asyncio.get_event_loop()
+    returns = await loop.run_in_executor(None, get_backtest_returns, req.ticker, req.days_history)
+    if not returns or len(returns) < 10:
+        raise HTTPException(status_code=400, detail="Yeterli veri yok. Farkli bir ticker veya daha uzun sure deneyin.")
+    result = await loop.run_in_executor(
+        None, run_monte_carlo, returns,
+        req.initial_capital, req.num_simulations, req.num_days, 0.95, req.ruin_threshold,
+    )
+    return result
+
+@app.post("/api/stress-test")
+async def stress_test(req: MonteCarloRequest):
+    """V5: Belirli stres senaryolari altinda portfoy testi."""
+    loop = asyncio.get_event_loop()
+    returns = await loop.run_in_executor(None, get_backtest_returns, req.ticker, req.days_history)
+    if not returns or len(returns) < 10:
+        raise HTTPException(status_code=400, detail="Yeterli veri yok.")
+    result = await loop.run_in_executor(
+        None, run_stress_scenarios, returns, req.initial_capital, req.num_days,
+    )
+    return result
+
+# ─── V5: Strategy Optimizer ──────────────────────────────────────
+
+class OptimizeRequest(BaseModel):
+    ticker: str = Field("AAPL", description="Optimize edilecek ticker")
+    days: int = Field(365, ge=90, le=1825)
+    initial_capital: float = Field(100000, ge=1000)
+    target_metric: str = Field("sharpe_ratio", description="sharpe_ratio | total_return_pct | max_drawdown_pct | profit_factor | win_rate")
+    quick: bool = Field(False, description="Hizli optimizasyon (kucuk grid)")
+
+@app.post("/api/optimize")
+async def optimize(req: OptimizeRequest):
+    """V5: Grid search ile strateji parametrelerini optimize et."""
+    loop = asyncio.get_event_loop()
+    if req.quick:
+        result = await loop.run_in_executor(None, quick_optimize, req.ticker, req.days)
+    else:
+        result = await loop.run_in_executor(
+            None, optimize_strategy, req.ticker, req.days, req.initial_capital, req.target_metric, None,
+        )
+    return result
+
+# ─── V5: Advanced Trade Journal ──────────────────────────────────
+
+class JournalEntry(BaseModel):
+    ticker: str
+    action: str
+    side: str = "long"
+    entry_price: float = 0
+    exit_price: float = 0
+    qty: float = 0
+    setup_type: str = ""
+    tags: list[str] = []
+    notes: str = ""
+    ai_confidence: int = 0
+    regime: str = ""
+    strategy: str = ""
+    entry_reason: str = ""
+    exit_reason: str = ""
+    stop_loss: float | None = None
+    take_profit: float | None = None
+
+@app.post("/api/journal")
+async def journal_add(entry: JournalEntry):
+    """V5: Gelismis journal kaydı ekle."""
+    return log_trade_v2(**entry.model_dump())
+
+@app.get("/api/journal")
+async def journal_list(
+    limit: int = 50,
+    ticker: str = None,
+    tag: str = None,
+    setup_type: str = None,
+    side: str = None,
+    winners_only: bool = False,
+    losers_only: bool = False,
+):
+    """V5: Journal kayitlarini filtrele."""
+    return get_journal_v2(
+        limit=limit, ticker=ticker, tag=tag,
+        setup_type=setup_type, side=side,
+        winners_only=winners_only, losers_only=losers_only,
+    )
+
+@app.get("/api/journal/analytics")
+async def journal_analytics():
+    """V5: Kapsamli journal analitikleri."""
+    return get_journal_analytics()
+
+@app.get("/api/journal/export")
+async def journal_export():
+    """V5: Journal CSV export."""
+    from fastapi.responses import PlainTextResponse
+    csv_content = export_journal_csv()
+    return PlainTextResponse(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=trade_journal.csv"},
+    )
+
+
 @app.get("/api/health")
 async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "4.5.1",
+        "version": "5.1",
         "ai_enabled": is_enabled(),
         "gemini_enabled": gemini_enabled(),
         "regime": last_scan.get("regime", "unknown"),

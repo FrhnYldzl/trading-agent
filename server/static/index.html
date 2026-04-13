@@ -1058,6 +1058,20 @@
       Trade History
     </button>
 
+    <div class="nav-section-label">Advanced</div>
+    <button class="nav-item" onclick="switchSection('montecarlo',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-10"/></svg>
+      Monte Carlo
+    </button>
+    <button class="nav-item" onclick="switchSection('optimizer',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Optimizer
+    </button>
+    <button class="nav-item" onclick="switchSection('journal',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Trade Journal
+    </button>
+
     <div class="nav-section-label">Operations</div>
     <button class="nav-item" onclick="switchSection('signals',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -1534,6 +1548,170 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SECTION: MONTE CARLO
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="section-content" id="section-montecarlo">
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">
+          <div class="panel-title">Monte Carlo Stress Test</div>
+          <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">Bootstrap simulation on historical returns</span>
+        </div>
+        <div class="panel-body" style="padding:16px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+            <div>
+              <label style="display:block;margin-bottom:3px">Source Ticker</label>
+              <input type="text" id="mc-ticker" value="SPY">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">History (Days)</label>
+              <input type="number" id="mc-history" value="365" min="90" max="1825">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">Capital ($)</label>
+              <input type="number" id="mc-capital" value="100000" min="1000">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">Simulations</label>
+              <input type="number" id="mc-sims" value="1000" min="100" max="5000">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">Forecast (Days)</label>
+              <input type="number" id="mc-days" value="252" min="30" max="756">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">Ruin Threshold (%)</label>
+              <input type="number" id="mc-ruin" value="30" min="10" max="80">
+            </div>
+            <div style="display:flex;align-items:end;gap:6px">
+              <button onclick="runMonteCarlo()" id="mc-run-btn" style="padding:9px 18px;background:var(--purple-dim);color:var(--purple);border:1px solid rgba(139,92,246,0.3);border-radius:var(--radius);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font-mono);text-transform:uppercase">Simulate</button>
+              <button onclick="runStressTest()" id="mc-stress-btn" style="padding:9px 12px;background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);border-radius:var(--radius);font-size:10px;cursor:pointer;white-space:nowrap;font-weight:700;font-family:var(--font-mono)">Stress Test</button>
+            </div>
+          </div>
+
+          <div id="mc-loading" style="display:none;text-align:center;padding:20px;color:var(--text-muted);font-size:12px">
+            Running simulation... This may take a moment...
+          </div>
+          <div id="mc-results" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SECTION: STRATEGY OPTIMIZER
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="section-content" id="section-optimizer">
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">
+          <div class="panel-title">Strategy Optimizer — Grid Search</div>
+          <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">Find optimal parameters via exhaustive search</span>
+        </div>
+        <div class="panel-body" style="padding:16px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+            <div>
+              <label style="display:block;margin-bottom:3px">Ticker</label>
+              <input type="text" id="opt-ticker" value="AAPL">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">Period (Days)</label>
+              <input type="number" id="opt-days" value="365" min="90" max="1825">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:3px">Target Metric</label>
+              <select id="opt-metric">
+                <option value="sharpe_ratio">Sharpe Ratio</option>
+                <option value="total_return_pct">Total Return %</option>
+                <option value="profit_factor">Profit Factor</option>
+                <option value="win_rate">Win Rate</option>
+                <option value="max_drawdown_pct">Min Drawdown</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:end;gap:6px">
+              <button onclick="runOptimizer(false)" id="opt-run-btn" style="padding:9px 18px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font-mono);text-transform:uppercase">Optimize</button>
+              <button onclick="runOptimizer(true)" style="padding:9px 12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:10px;cursor:pointer;white-space:nowrap;font-weight:600">Quick</button>
+            </div>
+          </div>
+
+          <div id="opt-loading" style="display:none;text-align:center;padding:20px;color:var(--text-muted);font-size:12px">
+            Optimizing... Testing parameter combinations...
+          </div>
+          <div id="opt-results" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SECTION: TRADE JOURNAL
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="section-content" id="section-journal">
+
+      <div class="analytics-grid" id="journal-stats-grid" style="margin-bottom:16px">
+        <div class="panel" style="grid-column:span 2">
+          <div class="panel-header">
+            <div class="panel-title">Journal Analytics</div>
+            <div style="display:flex;gap:6px">
+              <button class="icon-btn" onclick="loadJournalAnalytics()" title="Refresh">&#x21bb;</button>
+              <a href="/api/journal/export" download style="font-size:10px;color:var(--blue);text-decoration:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font-mono)">CSV Export</a>
+            </div>
+          </div>
+          <div class="panel-body" id="journal-analytics-body" style="padding:14px">
+            <div style="font-size:11px;color:var(--text-muted)">Loading journal analytics...</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Streaks & Patterns</div>
+          </div>
+          <div class="panel-body" id="journal-streaks-body" style="padding:14px">
+            <div style="font-size:11px;color:var(--text-muted)">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Trade Log</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="journal-filter-side" onchange="loadJournalEntries()" style="padding:3px 8px;font-size:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-mono)">
+              <option value="">All Sides</option>
+              <option value="long">Long Only</option>
+              <option value="short">Short Only</option>
+            </select>
+            <select id="journal-filter-result" onchange="loadJournalEntries()" style="padding:3px 8px;font-size:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-mono)">
+              <option value="">All Results</option>
+              <option value="winners">Winners</option>
+              <option value="losers">Losers</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>P&L</th>
+                <th>Setup</th>
+                <th>Tags</th>
+              </tr>
+            </thead>
+            <tbody id="journal-trades-body">
+              <tr><td colspan="8"><div class="empty">Loading journal...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /content-scroll -->
@@ -2773,6 +2951,375 @@ if (ws) {
     } catch {}
   };
 }
+
+// ─── V5: Monte Carlo ─────────────────────────────────────────────
+
+async function runMonteCarlo() {
+  const btn = document.getElementById('mc-run-btn');
+  const loading = document.getElementById('mc-loading');
+  const results = document.getElementById('mc-results');
+  btn.disabled = true; btn.textContent = 'Running...';
+  loading.style.display = 'block'; results.style.display = 'none';
+
+  try {
+    const body = {
+      ticker: document.getElementById('mc-ticker').value.toUpperCase(),
+      days_history: parseInt(document.getElementById('mc-history').value),
+      initial_capital: parseFloat(document.getElementById('mc-capital').value),
+      num_simulations: parseInt(document.getElementById('mc-sims').value),
+      num_days: parseInt(document.getElementById('mc-days').value),
+      ruin_threshold: parseInt(document.getElementById('mc-ruin').value) / 100,
+    };
+    const res = await fetch('/api/monte-carlo', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (d.detail) { alert('Error: ' + d.detail); return; }
+    renderMonteCarloResults(d);
+    toast('Monte Carlo simulation complete', 'success');
+  } catch(e) { alert('Monte Carlo error: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Simulate'; loading.style.display = 'none'; }
+}
+
+async function runStressTest() {
+  const btn = document.getElementById('mc-stress-btn');
+  const loading = document.getElementById('mc-loading');
+  const results = document.getElementById('mc-results');
+  btn.disabled = true;
+  loading.style.display = 'block'; results.style.display = 'none';
+
+  try {
+    const body = {
+      ticker: document.getElementById('mc-ticker').value.toUpperCase(),
+      days_history: parseInt(document.getElementById('mc-history').value),
+      initial_capital: parseFloat(document.getElementById('mc-capital').value),
+      num_days: parseInt(document.getElementById('mc-days').value),
+    };
+    const res = await fetch('/api/stress-test', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (d.detail) { alert('Error: ' + d.detail); return; }
+    renderStressResults(d);
+    toast('Stress test complete', 'success');
+  } catch(e) { alert('Stress test error: ' + e.message); }
+  finally { btn.disabled = false; loading.style.display = 'none'; }
+}
+
+function renderMonteCarloResults(d) {
+  const el = document.getElementById('mc-results');
+  const r = d.results || {};
+  const inp = d.input_stats || {};
+  const eq = d.equity_percentiles || {};
+  const ret = d.return_percentiles || {};
+  const dd = d.drawdown_percentiles || {};
+
+  const winColor = r.win_probability >= 60 ? 'var(--green)' : r.win_probability >= 40 ? 'var(--amber)' : 'var(--red)';
+  const ruinColor = r.ruin_probability <= 5 ? 'var(--green)' : r.ruin_probability <= 20 ? 'var(--amber)' : 'var(--red)';
+
+  let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:16px">`;
+  html += metricCard('Win Prob.', r.win_probability + '%', winColor);
+  html += metricCard('Ruin Prob.', r.ruin_probability + '%', ruinColor);
+  html += metricCard('Avg Return', r.avg_return_pct + '%', r.avg_return_pct >= 0 ? 'var(--green)' : 'var(--red)');
+  html += metricCard('Median Return', r.median_return_pct + '%', r.median_return_pct >= 0 ? 'var(--green)' : 'var(--red)');
+  html += metricCard('VaR 95%', '$' + (r.var_value || 0).toLocaleString(), 'var(--red)');
+  html += metricCard('CVaR', '$' + (r.cvar_value || 0).toLocaleString(), 'var(--red)');
+  html += metricCard('Exp. Sharpe', inp.expected_sharpe, inp.expected_sharpe >= 1 ? 'var(--green)' : 'var(--amber)');
+  html += metricCard('Ann. Vol', inp.annualized_volatility + '%', 'var(--blue)');
+  html += `</div>`;
+
+  // Percentile table
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">`;
+
+  // Return percentiles
+  html += `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px">
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Return Distribution</div>`;
+  ['p5','p25','p50','p75','p95'].forEach(p => {
+    const v = ret[p] || 0;
+    const c = v >= 0 ? 'var(--green)' : 'var(--red)';
+    html += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;font-family:var(--font-mono)"><span style="color:var(--text-muted)">${p.toUpperCase()}</span><span style="color:${c};font-weight:700">${v}%</span></div>`;
+  });
+  html += '</div>';
+
+  // Equity percentiles
+  html += `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px">
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Final Equity</div>`;
+  ['p5','p25','p50','p75','p95'].forEach(p => {
+    const v = eq[p] || 0;
+    html += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;font-family:var(--font-mono)"><span style="color:var(--text-muted)">${p.toUpperCase()}</span><span style="font-weight:700">$${Math.round(v).toLocaleString()}</span></div>`;
+  });
+  html += '</div>';
+
+  // Drawdown percentiles
+  html += `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px">
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Max Drawdown</div>`;
+  ['p50','p75','p95','p99'].forEach(p => {
+    const v = dd[p] || 0;
+    const c = v <= 15 ? 'var(--green)' : v <= 30 ? 'var(--amber)' : 'var(--red)';
+    html += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;font-family:var(--font-mono)"><span style="color:var(--text-muted)">${p.toUpperCase()}</span><span style="color:${c};font-weight:700">${v}%</span></div>`;
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // Params summary
+  const params = d.params || {};
+  html += `<div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">
+    ${params.num_simulations} simulations | ${params.num_days} days | ${params.input_data_points} data points | Ruin threshold: ${params.ruin_threshold_pct}%
+  </div>`;
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function renderStressResults(d) {
+  const el = document.getElementById('mc-results');
+  const scenarios = d.scenarios || {};
+  const summary = d.summary || {};
+
+  let html = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Stress Test Scenarios</div>`;
+
+  // Summary
+  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px">`;
+  html += metricCard('Worst Case', summary.worst_return_pct + '%', 'var(--red)');
+  html += metricCard('Best Case', summary.best_return_pct + '%', 'var(--green)');
+  html += metricCard('Avg Max DD', summary.avg_max_drawdown_pct + '%', 'var(--amber)');
+  html += metricCard('Survival', summary.survival_rate, 'var(--blue)');
+  html += '</div>';
+
+  // Scenario cards
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">';
+  for (const [key, s] of Object.entries(scenarios)) {
+    const retColor = s.return_pct >= 0 ? 'var(--green)' : s.return_pct > -30 ? 'var(--amber)' : 'var(--red)';
+    const ddColor = s.max_drawdown_pct <= 20 ? 'var(--green)' : s.max_drawdown_pct <= 40 ? 'var(--amber)' : 'var(--red)';
+    html += `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:8px">${s.name}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:var(--font-mono);font-size:11px">
+        <div><span style="color:var(--text-muted);font-size:9px;display:block">Return</span><span style="color:${retColor};font-weight:700">${s.return_pct}%</span></div>
+        <div><span style="color:var(--text-muted);font-size:9px;display:block">Max DD</span><span style="color:${ddColor};font-weight:700">${s.max_drawdown_pct}%</span></div>
+        <div style="grid-column:span 2"><span style="color:var(--text-muted);font-size:9px;display:block">Final Equity</span><span style="font-weight:700">$${s.final_equity.toLocaleString()}</span></div>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// ─── V5: Strategy Optimizer ──────────────────────────────────────
+
+async function runOptimizer(quick) {
+  const btn = document.getElementById('opt-run-btn');
+  const loading = document.getElementById('opt-loading');
+  const results = document.getElementById('opt-results');
+  btn.disabled = true; btn.textContent = 'Running...';
+  loading.style.display = 'block'; results.style.display = 'none';
+
+  try {
+    const body = {
+      ticker: document.getElementById('opt-ticker').value.toUpperCase(),
+      days: parseInt(document.getElementById('opt-days').value),
+      target_metric: document.getElementById('opt-metric').value,
+      quick: quick,
+    };
+    const res = await fetch('/api/optimize', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (d.detail || d.error) { alert('Error: ' + (d.detail || d.error)); return; }
+    renderOptimizerResults(d);
+    toast('Optimization complete', 'success');
+  } catch(e) { alert('Optimizer error: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Optimize'; loading.style.display = 'none'; }
+}
+
+function renderOptimizerResults(d) {
+  const el = document.getElementById('opt-results');
+  const best = d.best_result || {};
+  const bp = d.best_params || {};
+
+  let html = `<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Optimization Results — ${d.ticker} (${d.successful_runs}/${d.total_combinations} runs)</div>`;
+
+  // Best params highlight
+  html += `<div style="background:var(--green-dim);border:1px solid var(--green-border);border-radius:var(--radius-lg);padding:14px;margin-bottom:14px">
+    <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Optimal Parameters</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;font-family:var(--font-mono);font-size:12px">`;
+  for (const [k, v] of Object.entries(bp)) {
+    html += `<div><span style="color:var(--text-muted);font-size:9px;display:block;text-transform:uppercase">${k.replace(/_/g,' ')}</span><span style="font-weight:700;color:var(--text-primary)">${v}</span></div>`;
+  }
+  html += '</div></div>';
+
+  // Best result metrics
+  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px">`;
+  html += metricCard('Return', best.total_return_pct + '%', best.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)');
+  html += metricCard('Sharpe', best.sharpe_ratio, best.sharpe_ratio >= 1 ? 'var(--green)' : 'var(--amber)');
+  html += metricCard('Max DD', best.max_drawdown_pct + '%', 'var(--red)');
+  html += metricCard('Win Rate', best.win_rate + '%', best.win_rate >= 50 ? 'var(--green)' : 'var(--amber)');
+  html += metricCard('P.Factor', best.profit_factor, best.profit_factor >= 1.5 ? 'var(--green)' : 'var(--amber)');
+  html += metricCard('Trades', best.trade_count, 'var(--text-primary)');
+  html += '</div>';
+
+  // Overfitting warning
+  if (d.overfitting_warning) {
+    html += `<div style="background:var(--amber-dim);border:1px solid var(--amber-border);border-radius:var(--radius);padding:10px;margin-bottom:14px;font-size:11px;color:var(--amber)">
+      <strong>Overfitting Warning:</strong> ${d.overfitting_warning}
+    </div>`;
+  }
+
+  // Sensitivity analysis
+  const sens = d.sensitivity || {};
+  if (Object.keys(sens).length > 0) {
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:6px">Parameter Sensitivity</div>`;
+    for (const [param, data] of Object.entries(sens)) {
+      html += `<div style="margin-bottom:8px"><span style="font-size:11px;font-weight:600;color:var(--text-secondary)">${param.replace(/_/g,' ')}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:6px;font-family:var(--font-mono)">impact: ${data.impact}</span>
+        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">`;
+      for (const [val, score] of Object.entries(data.values || {})) {
+        const isOpt = bp[param] !== undefined && String(bp[param]) === val;
+        html += `<span style="font-size:9px;padding:2px 6px;border-radius:var(--radius-sm);font-family:var(--font-mono);
+          ${isOpt ? 'background:var(--green-dim);color:var(--green);border:1px solid var(--green-border)' : 'background:var(--bg-primary);color:var(--text-tertiary);border:1px solid var(--border)'}">${val}: ${score}</span>`;
+      }
+      html += '</div></div>';
+    }
+  }
+
+  // Top 10 table
+  const top = d.top_results || [];
+  if (top.length > 1) {
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:12px 0 6px">Top 10 Configurations</div>`;
+    html += '<div style="max-height:200px;overflow-y:auto"><table style="width:100%;font-size:10px;border-collapse:collapse">';
+    html += '<thead><tr><th style="padding:4px">#</th><th style="padding:4px">Risk%</th><th style="padding:4px">SL</th><th style="padding:4px">TP</th><th style="padding:4px">Mom</th><th style="padding:4px">Return</th><th style="padding:4px">Sharpe</th><th style="padding:4px">WR%</th></tr></thead><tbody>';
+    top.forEach((r, i) => {
+      const p = r.params || {};
+      html += `<tr style="border-bottom:1px solid var(--border)${i===0?';background:var(--green-dim)':''}">
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${i+1}</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${((p.risk_per_trade||0)*100).toFixed(1)}</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${p.atr_sl_multiplier||'-'}</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${p.atr_tp_multiplier||'-'}</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${p.min_momentum||'-'}</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono);color:${r.total_return_pct>=0?'var(--green)':'var(--red)'}">${r.total_return_pct}%</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${r.sharpe_ratio}</td>
+        <td style="padding:3px 4px;font-family:var(--font-mono)">${r.win_rate}%</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// ─── V5: Trade Journal ───────────────────────────────────────────
+
+async function loadJournalAnalytics() {
+  const body = document.getElementById('journal-analytics-body');
+  const streaks = document.getElementById('journal-streaks-body');
+  body.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Loading...</span>';
+
+  try {
+    const d = await (await fetch('/api/journal/analytics')).json();
+    if (d.error || d.total_trades === 0) {
+      body.innerHTML = `<div style="font-size:11px;color:var(--text-muted)">${d.error || 'No journal entries yet. Trades will appear here as they are logged.'}</div>`;
+      streaks.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">No data</div>';
+      return;
+    }
+
+    let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:14px">`;
+    html += metricCard('Total', d.total_trades, 'var(--text-primary)');
+    html += metricCard('Win Rate', d.win_rate + '%', d.win_rate >= 50 ? 'var(--green)' : 'var(--red)');
+    html += metricCard('Total P&L', '$' + d.total_pnl.toLocaleString(), d.total_pnl >= 0 ? 'var(--green)' : 'var(--red)');
+    html += metricCard('Avg Win', '$' + d.avg_win, 'var(--green)');
+    html += metricCard('Avg Loss', '$' + d.avg_loss, 'var(--red)');
+    html += metricCard('P.Factor', d.profit_factor, d.profit_factor >= 1.5 ? 'var(--green)' : 'var(--amber)');
+    html += metricCard('Expectancy', '$' + d.expectancy, d.expectancy >= 0 ? 'var(--green)' : 'var(--red)');
+    html += '</div>';
+
+    // Side performance
+    const ss = d.side_stats || {};
+    if (Object.keys(ss).length > 0) {
+      html += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">By Side</div>';
+      html += '<div style="display:flex;gap:10px;margin-bottom:12px">';
+      for (const [side, data] of Object.entries(ss)) {
+        html += `<div style="font-size:11px;font-family:var(--font-mono)"><span style="font-weight:700;color:${side==='long'?'var(--green)':'var(--red)'}">${side.toUpperCase()}</span>: ${data.trades} trades, ${data.win_rate}% WR, $${data.total_pnl}</div>`;
+      }
+      html += '</div>';
+    }
+
+    // Day stats
+    const ds = d.day_stats || {};
+    if (Object.keys(ds).length > 0) {
+      html += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">By Day</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+      for (const [day, data] of Object.entries(ds)) {
+        const c = data.total_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        html += `<span style="font-size:9px;padding:3px 6px;border-radius:var(--radius-sm);background:var(--bg-primary);border:1px solid var(--border);font-family:var(--font-mono)">
+          <span style="font-weight:600">${day.slice(0,3)}</span> <span style="color:${c}">${data.win_rate}%</span>
+        </span>`;
+      }
+      html += '</div>';
+    }
+
+    body.innerHTML = html;
+
+    // Streaks
+    const st = d.streaks || {};
+    let shtml = `<div style="display:grid;gap:8px;font-size:11px">`;
+    shtml += `<div><span style="color:var(--text-muted);font-size:10px">Max Win Streak</span><br><span style="font-family:var(--font-mono);font-weight:700;color:var(--green)">${st.max_win_streak || 0}</span></div>`;
+    shtml += `<div><span style="color:var(--text-muted);font-size:10px">Max Loss Streak</span><br><span style="font-family:var(--font-mono);font-weight:700;color:var(--red)">${st.max_loss_streak || 0}</span></div>`;
+    shtml += `<div><span style="color:var(--text-muted);font-size:10px">Current</span><br><span style="font-family:var(--font-mono);font-weight:700;color:${st.current_type==='win'?'var(--green)':'var(--red)'}">${st.current_streak || 0} ${(st.current_type||'').toUpperCase()}</span></div>`;
+    shtml += '</div>';
+
+    // Best/worst
+    const best = d.best_trades || [];
+    const worst = d.worst_trades || [];
+    if (best.length > 0) {
+      shtml += '<div style="margin-top:10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">Best Trade</div>';
+      const b = best[best.length - 1];
+      shtml += `<div style="font-size:10px;font-family:var(--font-mono);color:var(--green)">${b.ticker} +$${b.pnl} (${b.pnl_pct}%)</div>`;
+    }
+    if (worst.length > 0) {
+      shtml += '<div style="margin-top:6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px">Worst Trade</div>';
+      const w = worst[0];
+      shtml += `<div style="font-size:10px;font-family:var(--font-mono);color:var(--red)">${w.ticker} $${w.pnl} (${w.pnl_pct}%)</div>`;
+    }
+
+    streaks.innerHTML = shtml;
+  } catch(e) {
+    body.innerHTML = '<span style="color:var(--red);font-size:11px">Error loading analytics</span>';
+  }
+}
+
+async function loadJournalEntries() {
+  const tbody = document.getElementById('journal-trades-body');
+  const side = document.getElementById('journal-filter-side').value;
+  const resultFilter = document.getElementById('journal-filter-result').value;
+
+  let url = '/api/journal?limit=50';
+  if (side) url += '&side=' + side;
+  if (resultFilter === 'winners') url += '&winners_only=true';
+  if (resultFilter === 'losers') url += '&losers_only=true';
+
+  try {
+    const rows = await (await fetch(url)).json();
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty">No journal entries</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(t => {
+      const pColor = t.pnl > 0 ? 'var(--green)' : t.pnl < 0 ? 'var(--red)' : 'var(--text-muted)';
+      const tags = JSON.parse(t.tags || '[]');
+      return `<tr>
+        <td style="color:var(--text-tertiary)">${t.timestamp ? t.timestamp.substring(0,16) : '--'}</td>
+        <td style="font-weight:700">${t.ticker}</td>
+        <td><span class="badge badge-${t.side === 'short' ? 'short' : 'long'}">${(t.side||'').toUpperCase()}</span></td>
+        <td style="font-family:var(--font-mono)">$${t.entry_price || '--'}</td>
+        <td style="font-family:var(--font-mono)">$${t.exit_price || '--'}</td>
+        <td style="font-family:var(--font-mono);color:${pColor};font-weight:700">${t.pnl > 0 ? '+' : ''}$${t.pnl || 0}</td>
+        <td style="font-size:10px">${t.setup_type || '--'}</td>
+        <td style="font-size:9px">${tags.map(tag => `<span style="padding:1px 4px;border-radius:2px;background:var(--blue-dim);color:var(--blue);margin-right:2px">${tag}</span>`).join('')}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty" style="color:var(--red)">Error</div></td></tr>';
+  }
+}
+
+// Load journal on section switch
+setTimeout(() => { loadJournalAnalytics(); loadJournalEntries(); }, 3000);
 
 // ─── Webhook URL auto-fill ───────────────────────────────────────
 
