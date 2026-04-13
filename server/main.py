@@ -40,6 +40,7 @@ from risk_manager import RiskManager
 from ai_advisor import analyze_trade, review_strategy, is_enabled
 import scheduler as sched
 from market_scanner import get_market_data, get_multi_timeframe, get_correlation_matrix, WATCHLIST
+from backtester import run_backtest, run_portfolio_backtest
 import config as cfg
 
 _env_path = Path(__file__).parent.parent / ".env"
@@ -560,12 +561,63 @@ async def correlation():
     return await loop.run_in_executor(None, get_correlation_matrix)
 
 
+# ─── V3.2: Backtesting ─────────────────────────────────────────
+
+class BacktestRequest(BaseModel):
+    ticker: str = "AAPL"
+    days: int = Field(default=365, ge=90, le=1825)
+    initial_capital: float = Field(default=100_000, ge=1000)
+    risk_per_trade: float = Field(default=0.02, ge=0.005, le=0.10)
+    atr_sl_multiplier: float = Field(default=1.5, ge=0.5, le=5.0)
+    atr_tp_multiplier: float = Field(default=3.0, ge=1.0, le=10.0)
+    min_momentum: int = Field(default=55, ge=30, le=80)
+
+
+class PortfolioBacktestRequest(BaseModel):
+    tickers: list[str] = []
+    days: int = Field(default=365, ge=90, le=1825)
+    initial_capital: float = Field(default=100_000, ge=1000)
+    risk_per_trade: float = Field(default=0.02, ge=0.005, le=0.10)
+
+
+@app.post("/api/backtest")
+async def backtest(req: BacktestRequest):
+    """V3.2: Tek hisse backtesti — sinyal stratejisini geçmiş veriye uygula."""
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, lambda: run_backtest(
+        ticker=req.ticker,
+        days=req.days,
+        initial_capital=req.initial_capital,
+        risk_per_trade=req.risk_per_trade,
+        atr_sl_multiplier=req.atr_sl_multiplier,
+        atr_tp_multiplier=req.atr_tp_multiplier,
+        min_momentum=req.min_momentum,
+    ))
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/backtest/portfolio")
+async def backtest_portfolio(req: PortfolioBacktestRequest):
+    """V3.2: Portföy backtesti — tüm watchlist veya seçili hisseler."""
+    tickers = req.tickers if req.tickers else WATCHLIST
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, lambda: run_portfolio_backtest(
+        tickers=tickers,
+        days=req.days,
+        initial_capital=req.initial_capital,
+        risk_per_trade=req.risk_per_trade,
+    ))
+    return result
+
+
 @app.get("/api/health")
 async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "3.0",
+        "version": "3.2",
         "ai_enabled": is_enabled(),
         "regime": last_scan.get("regime", "unknown"),
         "session_mode": last_scan.get("session_mode", "unknown"),

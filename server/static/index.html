@@ -751,6 +751,82 @@
     </div>
   </div>
 
+  <!-- V3.2: Backtest Paneli -->
+  <div class="panel" style="margin-bottom:20px">
+    <div class="panel-header">
+      <div class="panel-title" style="font-size:13px">Strateji Backtester</div>
+      <span style="font-size:10px;color:var(--muted)">Sinyalleri geçmiş veriye uygula</span>
+    </div>
+    <div class="panel-body" style="padding:16px">
+      <!-- Parametre Formu -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Hisse</label>
+          <input type="text" id="bt-ticker" value="AAPL" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Süre (gün)</label>
+          <input type="number" id="bt-days" value="365" min="90" max="1825" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Sermaye ($)</label>
+          <input type="number" id="bt-capital" value="100000" min="1000" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Risk/İşlem (%)</label>
+          <input type="number" id="bt-risk" value="2" min="0.5" max="10" step="0.5" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">SL (ATR x)</label>
+          <input type="number" id="bt-sl" value="1.5" min="0.5" max="5" step="0.1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">TP (ATR x)</label>
+          <input type="number" id="bt-tp" value="3.0" min="1" max="10" step="0.5" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Min Momentum</label>
+          <input type="number" id="bt-mom" value="55" min="30" max="80" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+        </div>
+        <div style="display:flex;align-items:end;gap:6px">
+          <button onclick="runBacktest()" id="bt-run-btn" style="padding:6px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Backtest Çalıştır</button>
+          <button onclick="runPortfolioBacktest()" style="padding:6px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap" title="Tüm watchlist için">Portföy</button>
+        </div>
+      </div>
+
+      <!-- Sonuçlar -->
+      <div id="bt-results" style="display:none">
+        <!-- Metrikler -->
+        <div id="bt-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px"></div>
+
+        <!-- Equity Curve (ASCII) -->
+        <div id="bt-curve" style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:12px;font-family:monospace;font-size:11px;overflow-x:auto;white-space:pre;line-height:1.4"></div>
+
+        <!-- İşlem Tablosu -->
+        <div style="max-height:200px;overflow-y:auto">
+          <table style="width:100%;font-size:11px;border-collapse:collapse">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);text-align:left">
+                <th style="padding:4px 6px">Giriş</th>
+                <th style="padding:4px 6px">Çıkış</th>
+                <th style="padding:4px 6px">Giriş $</th>
+                <th style="padding:4px 6px">Çıkış $</th>
+                <th style="padding:4px 6px">Adet</th>
+                <th style="padding:4px 6px">P&L</th>
+                <th style="padding:4px 6px">%</th>
+                <th style="padding:4px 6px">Sebep</th>
+              </tr>
+            </thead>
+            <tbody id="bt-trades-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="bt-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:12px">
+        Backtest çalışıyor... Geçmiş veriler analiz ediliyor...
+      </div>
+    </div>
+  </div>
+
   <!-- Main Grid -->
   <div class="main-grid">
 
@@ -1513,6 +1589,171 @@ async function emergencyLiquidate() {
     loadAccount();
     loadTrades();
   } catch(e) { alert('Likidasyon hatası: ' + e.message); }
+}
+
+// ─── V3.2: Backtest ─────────────────────────────────────────────
+
+async function runBacktest() {
+  const btn = document.getElementById('bt-run-btn');
+  const loading = document.getElementById('bt-loading');
+  const results = document.getElementById('bt-results');
+  btn.disabled = true; btn.textContent = 'Çalışıyor...';
+  loading.style.display = 'block'; results.style.display = 'none';
+
+  try {
+    const body = {
+      ticker: document.getElementById('bt-ticker').value.toUpperCase(),
+      days: parseInt(document.getElementById('bt-days').value),
+      initial_capital: parseFloat(document.getElementById('bt-capital').value),
+      risk_per_trade: parseFloat(document.getElementById('bt-risk').value) / 100,
+      atr_sl_multiplier: parseFloat(document.getElementById('bt-sl').value),
+      atr_tp_multiplier: parseFloat(document.getElementById('bt-tp').value),
+      min_momentum: parseInt(document.getElementById('bt-mom').value),
+    };
+    const res = await fetch('/api/backtest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (d.detail) { alert('Hata: ' + d.detail); return; }
+    renderBacktestResults(d);
+  } catch(e) { alert('Backtest hatası: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Backtest Çalıştır'; loading.style.display = 'none'; }
+}
+
+async function runPortfolioBacktest() {
+  const loading = document.getElementById('bt-loading');
+  const results = document.getElementById('bt-results');
+  loading.style.display = 'block'; results.style.display = 'none';
+
+  try {
+    const body = {
+      days: parseInt(document.getElementById('bt-days').value),
+      initial_capital: parseFloat(document.getElementById('bt-capital').value),
+      risk_per_trade: parseFloat(document.getElementById('bt-risk').value) / 100,
+    };
+    const res = await fetch('/api/backtest/portfolio', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json();
+    // Portföy sonuçlarını özet olarak göster
+    let html = '<div style="margin-bottom:10px;font-size:13px;font-weight:700">Portföy Backtest Sonucu</div>';
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">`;
+    html += metricCard('Toplam Getiri', d.total_return_pct + '%', d.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)');
+    html += metricCard('Son Sermaye', '$' + d.final_equity?.toLocaleString(), 'var(--text)');
+    html += metricCard('İşlem Sayısı', d.total_trade_count, 'var(--blue)');
+    html += '</div>';
+
+    // Per-ticker breakdown
+    html += '<div style="max-height:200px;overflow-y:auto"><table style="width:100%;font-size:11px;border-collapse:collapse">';
+    html += '<tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:4px">Hisse</th><th style="padding:4px">Getiri</th><th style="padding:4px">İşlem</th><th style="padding:4px">Sharpe</th><th style="padding:4px">MaxDD</th></tr>';
+    for (const [tk, r] of Object.entries(d.per_ticker || {})) {
+      if (r.error) { html += `<tr><td style="padding:4px">${tk}</td><td colspan="4" style="color:var(--red);padding:4px">${r.error}</td></tr>`; continue; }
+      const retColor = r.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)';
+      html += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:4px;font-weight:600">${tk}</td>
+        <td style="padding:4px;color:${retColor}">${r.total_return_pct}%</td>
+        <td style="padding:4px">${r.trade_count}</td>
+        <td style="padding:4px">${r.metrics?.sharpe_ratio || '-'}</td>
+        <td style="padding:4px;color:var(--red)">${r.metrics?.max_drawdown_pct || '-'}%</td>
+      </tr>`;
+    }
+    html += '</table></div>';
+
+    document.getElementById('bt-metrics').innerHTML = '';
+    document.getElementById('bt-curve').innerHTML = '';
+    document.getElementById('bt-trades-body').innerHTML = '';
+    document.getElementById('bt-metrics').parentElement.querySelector('#bt-metrics').outerHTML =
+      `<div id="bt-metrics">${html}</div>`;
+    results.style.display = 'block';
+  } catch(e) { alert('Portföy backtest hatası: ' + e.message); }
+  finally { loading.style.display = 'none'; }
+}
+
+function metricCard(label, value, color) {
+  return `<div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+    <div style="font-size:10px;color:var(--muted);margin-bottom:3px">${label}</div>
+    <div style="font-size:16px;font-weight:700;color:${color}">${value}</div>
+  </div>`;
+}
+
+function renderBacktestResults(d) {
+  const results = document.getElementById('bt-results');
+  const metricsDiv = document.getElementById('bt-metrics');
+  const curveDiv = document.getElementById('bt-curve');
+  const tradesBody = document.getElementById('bt-trades-body');
+
+  const m = d.metrics || {};
+  const retColor = d.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)';
+  const sharpeColor = m.sharpe_ratio >= 1.5 ? 'var(--green)' : m.sharpe_ratio >= 0.5 ? 'var(--yellow)' : 'var(--red)';
+  const wrColor = m.win_rate >= 50 ? 'var(--green)' : m.win_rate >= 35 ? 'var(--yellow)' : 'var(--red)';
+
+  let benchNote = '';
+  if (d.benchmark && d.benchmark.return_pct !== undefined) {
+    const alpha = (d.total_return_pct - d.benchmark.return_pct).toFixed(2);
+    const aColor = alpha >= 0 ? 'var(--green)' : 'var(--red)';
+    benchNote = metricCard(`Alpha vs ${d.benchmark.ticker}`, alpha + '%', aColor);
+  }
+
+  metricsDiv.innerHTML = [
+    metricCard('Toplam Getiri', d.total_return_pct + '%', retColor),
+    metricCard('Sharpe', m.sharpe_ratio, sharpeColor),
+    metricCard('MaxDD', m.max_drawdown_pct + '%', 'var(--red)'),
+    metricCard('Win Rate', m.win_rate + '%', wrColor),
+    metricCard('P. Factor', m.profit_factor, m.profit_factor >= 1.5 ? 'var(--green)' : 'var(--yellow)'),
+    metricCard('CAGR', m.cagr + '%', m.cagr >= 0 ? 'var(--green)' : 'var(--red)'),
+    metricCard('Sortino', m.sortino_ratio, 'var(--blue)'),
+    metricCard('İşlem', m.total_trades, 'var(--text)'),
+    benchNote,
+  ].join('');
+
+  // ASCII Equity Curve
+  const curve = d.equity_curve || [];
+  if (curve.length > 0) {
+    const eqs = curve.map(c => c.equity);
+    const maxEq = Math.max(...eqs);
+    const minEq = Math.min(...eqs);
+    const range = maxEq - minEq || 1;
+    const width = Math.min(curve.length, 80);
+    const step = Math.max(1, Math.floor(curve.length / width));
+    const rows = 12;
+    const grid = Array.from({length: rows}, () => Array(width).fill(' '));
+
+    for (let i = 0; i < width; i++) {
+      const idx = Math.min(i * step, curve.length - 1);
+      const row = Math.floor((1 - (eqs[idx] - minEq) / range) * (rows - 1));
+      grid[row][i] = '█';
+    }
+
+    let chartStr = `<span style="color:var(--muted)"> ${d.ticker} Equity Curve — $${d.initial_capital.toLocaleString()} → $${d.final_equity.toLocaleString()}</span>\n`;
+    chartStr += `<span style="color:var(--muted)">$${maxEq.toLocaleString()}</span> ┤`;
+    for (let r = 0; r < rows; r++) {
+      const line = grid[r].join('');
+      if (r === 0) chartStr += `<span style="color:${retColor}">${line}</span>\n`;
+      else chartStr += `         │<span style="color:${retColor}">${line}</span>\n`;
+    }
+    chartStr += `<span style="color:var(--muted)">$${minEq.toLocaleString()}</span> ┤${'─'.repeat(width)}`;
+    if (curve.length > 0) {
+      chartStr += `\n          ${curve[0].date}${''.padEnd(width - 20)}${curve[curve.length-1].date}`;
+    }
+    curveDiv.innerHTML = chartStr;
+  } else {
+    curveDiv.innerHTML = '<span style="color:var(--muted)">Equity curve verisi yok</span>';
+  }
+
+  // Trade tablosu
+  const trades = d.trades || [];
+  tradesBody.innerHTML = trades.map(t => {
+    const pColor = t.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const reasonMap = { stop_loss: '🛑 SL', take_profit: '🎯 TP', signal_sell: '📉 Sinyal', signal_strong_sell: '⚠️ Güçlü Sat', end_of_period: '⏰ Süre' };
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:3px 6px">${t.entry_date}</td>
+      <td style="padding:3px 6px">${t.exit_date}</td>
+      <td style="padding:3px 6px">$${t.entry_price}</td>
+      <td style="padding:3px 6px">$${t.exit_price}</td>
+      <td style="padding:3px 6px">${t.qty}</td>
+      <td style="padding:3px 6px;color:${pColor};font-weight:600">$${t.pnl.toLocaleString()}</td>
+      <td style="padding:3px 6px;color:${pColor}">${t.pnl_pct}%</td>
+      <td style="padding:3px 6px;font-size:10px">${reasonMap[t.exit_reason] || t.exit_reason}</td>
+    </tr>`;
+  }).join('');
+
+  results.style.display = 'block';
 }
 
 // ─── V3: Tüm Verileri Yenile ────────────────────────────────────

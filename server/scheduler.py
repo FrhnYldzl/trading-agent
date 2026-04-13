@@ -15,7 +15,7 @@ Her modda Claude beyni calisir, sadece islem tetikleme modu degisir.
 import json
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -232,11 +232,17 @@ def start(broker=None, auto_execute: bool = False, interval_minutes: int = 10):
         replace_existing=True,
     )
 
-    scheduler.start()
-    print(f"[Scheduler] V2.2 baslatildi — her {interval_minutes} dk tarama + cleanup + review")
+    # Ilk taramayi 5 saniye sonra baslat (non-blocking, sunucu hemen acilsin)
+    scheduler.add_job(
+        func=lambda: run_scan(broker=broker, auto_execute=auto_execute),
+        trigger="date",
+        run_date=datetime.now(timezone.utc) + timedelta(seconds=5),
+        id="first_scan",
+        replace_existing=True,
+    )
 
-    # Ilk taramayi hemen yap
-    run_scan(broker=broker, auto_execute=auto_execute)
+    scheduler.start()
+    print(f"[Scheduler] V3.1 baslatildi — ilk tarama 5sn sonra, her {interval_minutes}dk tarama + cleanup + review")
 
 
 def stop():
