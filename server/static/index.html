@@ -583,6 +583,107 @@
     color: var(--text);
   }
 
+  /* ─── V4: Equity Chart ───────────────────────────────────────── */
+  .equity-chart-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 4px;
+  }
+  .equity-chart-wrap canvas {
+    width: 100%;
+    height: 180px;
+    display: block;
+  }
+  .equity-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .equity-chart-header h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .equity-period-btns {
+    display: flex;
+    gap: 4px;
+  }
+  .equity-period-btns button {
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .equity-period-btns button.active {
+    background: var(--blue);
+    color: #fff;
+    border-color: var(--blue);
+  }
+  .equity-stats-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 8px;
+    font-size: 11px;
+  }
+  .equity-stats-row .eq-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .equity-stats-row .eq-stat .eq-label { color: var(--muted); font-size: 10px; }
+  .equity-stats-row .eq-stat .eq-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ─── V4: Section tabs ──────────────────────────────────────── */
+  .section-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .section-tab {
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: inherit;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all .2s;
+  }
+  .section-tab:hover { color: var(--text); }
+  .section-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .section-content { display: none; }
+  .section-content.active { display: block; }
+
+  /* ─── V4: Responsive ────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .container { padding: 12px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card { padding: 12px; }
+    .stat-value { font-size: 20px; }
+    #v3-analytics, #v33-analytics { grid-template-columns: 1fr !important; }
+    .section-tab { padding: 8px 12px; font-size: 11px; }
+    .equity-chart-wrap canvas { height: 140px; }
+    .topbar { padding: 0 12px; }
+  }
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .regime-bar { flex-wrap: wrap; gap: 6px; }
+  }
+
   /* ─── Scrollbar ──────────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -636,6 +737,39 @@
     </div>
   </div>
 
+  <!-- V4: Equity Curve Chart -->
+  <div class="equity-chart-wrap">
+    <div class="equity-chart-header">
+      <h3>Portföy Performansı</h3>
+      <div class="equity-period-btns">
+        <button class="active" onclick="setEquityPeriod('1W',this)">1H</button>
+        <button onclick="setEquityPeriod('1M',this)">1A</button>
+        <button onclick="setEquityPeriod('3M',this)">3A</button>
+        <button onclick="setEquityPeriod('ALL',this)">Tümü</button>
+      </div>
+    </div>
+    <canvas id="equity-canvas" height="180"></canvas>
+    <div class="equity-stats-row">
+      <div class="eq-stat"><span class="eq-label">Günlük P&L</span><span class="eq-val" id="eq-daily-pnl">—</span></div>
+      <div class="eq-stat"><span class="eq-label">Toplam P&L</span><span class="eq-val" id="eq-total-pnl">—</span></div>
+      <div class="eq-stat"><span class="eq-label">Getiri %</span><span class="eq-val" id="eq-return-pct">—</span></div>
+      <div class="eq-stat"><span class="eq-label">Max DD</span><span class="eq-val" id="eq-max-dd">—</span></div>
+      <div class="eq-stat"><span class="eq-label">SPY vs</span><span class="eq-val" id="eq-spy-alpha">—</span></div>
+    </div>
+  </div>
+
+  <!-- V4: Section Tabs -->
+  <div class="section-tabs">
+    <button class="section-tab active" onclick="switchSection('ai',this)">AI Kararları</button>
+    <button class="section-tab" onclick="switchSection('analytics',this)">Analitik</button>
+    <button class="section-tab" onclick="switchSection('backtest',this)">Backtest</button>
+    <button class="section-tab" onclick="switchSection('trades',this)">İşlemler</button>
+    <button class="section-tab" onclick="switchSection('signals',this)">Sinyal Gönder</button>
+  </div>
+
+  <!-- SECTION: AI Kararları -->
+  <div class="section-content active" id="section-ai">
+
   <!-- V2: AI Öneriler Tam Satır -->
   <div class="panel" id="recommendations-panel">
     <div class="panel-header">
@@ -687,6 +821,11 @@
       </details>
     </div>
   </div>
+
+  </div><!-- /section-ai -->
+
+  <!-- SECTION: Analitik -->
+  <div class="section-content" id="section-analytics">
 
   <!-- V3: Analytics Grid -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px" id="v3-analytics">
@@ -788,6 +927,11 @@
     </div>
   </div>
 
+  </div><!-- /section-analytics -->
+
+  <!-- SECTION: Backtest -->
+  <div class="section-content" id="section-backtest">
+
   <!-- V3.2: Backtest Paneli -->
   <div class="panel" style="margin-bottom:20px">
     <div class="panel-header">
@@ -864,10 +1008,13 @@
     </div>
   </div>
 
-  <!-- Main Grid -->
-  <div class="main-grid">
+  </div><!-- /section-backtest -->
 
-    <!-- Sol: İşlem Geçmişi + Pozisyonlar -->
+  <!-- SECTION: İşlemler -->
+  <div class="section-content" id="section-trades">
+  <div class="main-grid" style="grid-template-columns:1fr">
+
+    <!-- İşlem Geçmişi + Pozisyonlar -->
     <div style="display:flex;flex-direction:column;gap:20px">
 
       <!-- İşlem Geçmişi -->
@@ -924,8 +1071,12 @@
 
     </div>
 
-    <!-- Sağ: Kontrol Paneli -->
-    <div style="display:flex;flex-direction:column;gap:20px">
+    </div>
+  </div><!-- /section-trades -->
+
+  <!-- SECTION: Sinyal Gönder -->
+  <div class="section-content" id="section-signals">
+    <div style="display:flex;flex-direction:column;gap:20px;max-width:600px">
 
       <!-- Sinyal Gönder -->
       <div class="panel">
@@ -1044,14 +1195,203 @@
       </div>
 
     </div>
-  </div>
+  </div><!-- /section-signals -->
 
-</div>
+</div><!-- /container -->
 
 <!-- ─── Toast Container ──────────────────────────────────────────── -->
 <div class="toast-container" id="toasts"></div>
 
 <script>
+// ─── V4: Section Tab Switching ───────────────────────────────────
+
+function switchSection(id, btn) {
+  document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+  const el = document.getElementById('section-' + id);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ─── V4: Equity Curve Canvas Chart ──────────────────────────────
+
+let equityData = [];
+let equityPeriod = 'ALL';
+
+function setEquityPeriod(period, btn) {
+  equityPeriod = period;
+  document.querySelectorAll('.equity-period-btns button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  drawEquityChart();
+}
+
+function drawEquityChart() {
+  const canvas = document.getElementById('equity-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!equityData.length) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Portföy verisi bekleniyor...', W / 2, H / 2);
+    return;
+  }
+
+  // Filter by period
+  let data = equityData;
+  const now = new Date();
+  if (equityPeriod === '1W') data = data.filter(d => (now - new Date(d.date)) < 7 * 86400000);
+  else if (equityPeriod === '1M') data = data.filter(d => (now - new Date(d.date)) < 30 * 86400000);
+  else if (equityPeriod === '3M') data = data.filter(d => (now - new Date(d.date)) < 90 * 86400000);
+
+  if (data.length < 2) { data = equityData; }
+
+  const values = data.map(d => d.equity);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = maxV - minV || 1;
+  const padY = 10;
+
+  // Grid lines
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = padY + (H - 2 * padY) * i / 4;
+    ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(W, y); ctx.stroke();
+    const val = maxV - range * i / 4;
+    ctx.fillStyle = '#8b949e'; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText('$' + Math.round(val).toLocaleString(), 38, y + 3);
+  }
+
+  // Line chart
+  const startColor = values[values.length - 1] >= values[0] ? '#3fb950' : '#f85149';
+  ctx.strokeStyle = startColor;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = 44 + (W - 50) * i / (data.length - 1);
+    const y = padY + (H - 2 * padY) * (1 - (values[i] - minV) / range);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Gradient fill
+  const lastX = 44 + (W - 50);
+  ctx.lineTo(lastX, H);
+  ctx.lineTo(44, H);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, startColor + '30');
+  grad.addColorStop(1, startColor + '05');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // SPY overlay if available
+  const spyValues = data.map(d => d.spy_equity).filter(v => v);
+  if (spyValues.length === data.length) {
+    const spyMin = Math.min(...spyValues);
+    const spyMax = Math.max(...spyValues);
+    const spyRange = spyMax - spyMin || 1;
+    ctx.strokeStyle = '#388bfd50';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = 44 + (W - 50) * i / (data.length - 1);
+      const y = padY + (H - 2 * padY) * (1 - (spyValues[i] - spyMin) / spyRange);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Legend
+    ctx.fillStyle = '#388bfd'; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText('--- SPY', W - 6, 14);
+  }
+
+  // Date labels
+  ctx.fillStyle = '#8b949e'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  if (data.length > 0) {
+    ctx.fillText(data[0].date, 60, H - 2);
+    ctx.fillText(data[data.length - 1].date, W - 30, H - 2);
+    if (data.length > 4) {
+      const mid = Math.floor(data.length / 2);
+      ctx.fillText(data[mid].date, W / 2, H - 2);
+    }
+  }
+}
+
+async function loadEquityData() {
+  try {
+    const acct = await (await fetch('/api/account')).json();
+    const equity = parseFloat(acct.equity) || 0;
+    const cash = parseFloat(acct.cash) || 0;
+
+    // Store data point
+    const today = new Date().toISOString().split('T')[0];
+    const stored = JSON.parse(localStorage.getItem('equity_history') || '[]');
+
+    // Update or add today's point
+    const existing = stored.findIndex(d => d.date === today);
+    if (existing >= 0) {
+      stored[existing].equity = equity;
+    } else {
+      stored.push({ date: today, equity: equity });
+    }
+
+    // Keep max 365 days
+    while (stored.length > 365) stored.shift();
+    localStorage.setItem('equity_history', JSON.stringify(stored));
+
+    equityData = stored;
+
+    // Update stats
+    if (stored.length > 0) {
+      const first = stored[0].equity;
+      const last = stored[stored.length - 1].equity;
+      const totalPnl = last - first;
+      const returnPct = first > 0 ? (totalPnl / first * 100) : 0;
+
+      // Daily P&L
+      const prev = stored.length > 1 ? stored[stored.length - 2].equity : first;
+      const dailyPnl = last - prev;
+
+      // Max Drawdown
+      let peak = first, maxDD = 0;
+      stored.forEach(d => {
+        if (d.equity > peak) peak = d.equity;
+        const dd = (peak - d.equity) / peak * 100;
+        if (dd > maxDD) maxDD = dd;
+      });
+
+      const dailyEl = document.getElementById('eq-daily-pnl');
+      const totalEl = document.getElementById('eq-total-pnl');
+      const retEl = document.getElementById('eq-return-pct');
+      const ddEl = document.getElementById('eq-max-dd');
+
+      if (dailyEl) { dailyEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(0); dailyEl.style.color = dailyPnl >= 0 ? '#3fb950' : '#f85149'; }
+      if (totalEl) { totalEl.textContent = (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(0); totalEl.style.color = totalPnl >= 0 ? '#3fb950' : '#f85149'; }
+      if (retEl) { retEl.textContent = (returnPct >= 0 ? '+' : '') + returnPct.toFixed(2) + '%'; retEl.style.color = returnPct >= 0 ? '#3fb950' : '#f85149'; }
+      if (ddEl) { ddEl.textContent = maxDD.toFixed(2) + '%'; ddEl.style.color = '#f85149'; }
+    }
+
+    drawEquityChart();
+  } catch(e) { /* silent */ }
+}
+
+// Resize handler
+window.addEventListener('resize', () => drawEquityChart());
+
 // ─── Yardımcılar ──────────────────────────────────────────────────
 
 const fmt = (n) => n == null ? '—' : '$' + Number(n).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -1933,6 +2273,10 @@ function loadAllV3() {
 
 // Sayfa yüklenince V3 verilerini de çek
 setTimeout(loadAllV3, 2000);
+// V4: Equity chart
+setTimeout(loadEquityData, 1000);
+// Equity'yi her 60 saniyede güncelle
+setInterval(loadEquityData, 60000);
 
 // ─── İşlem Onay/Red ─────────────────────────────────────────────
 
