@@ -822,3 +822,19 @@ async def test_notification():
             print(f"[Test Notifier] Hata: {e}")
     threading.Thread(target=_send, daemon=True).start()
     return {"status": "ok", "message": "Test e-postasi gonderiliyor... 10-15 saniye icinde mailinize dusecek."}
+
+
+@app.get("/api/notify-debug")
+async def notify_debug():
+    """E-posta ayarlarini kontrol et (sifre gizlenir)."""
+    smtp_email = os.getenv("SMTP_EMAIL") or os.getenv("NOTIFY_EMAIL") or ""
+    notify_email = os.getenv("NOTIFY_EMAIL") or ""
+    smtp_pass = os.getenv("SMTP_PASSWORD") or ""
+    return {
+        "notify_email": notify_email,
+        "smtp_email": smtp_email,
+        "smtp_password_length": len(smtp_pass),
+        "smtp_password_preview": smtp_pass[:4] + "..." if len(smtp_pass) > 4 else "TOO_SHORT",
+        "has_spaces": " " in smtp_pass,
+        "notify_enabled": notify_enabled(),
+    }
