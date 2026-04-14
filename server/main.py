@@ -45,6 +45,7 @@ from regime_detector import detect_regime
 from news_sentiment import get_market_sentiment, get_ticker_sentiment
 from anomaly_detector import detect_anomalies
 from gemini_auditor import get_last_audit, is_enabled as gemini_enabled
+from notifier import send_trade_notification, is_enabled as notify_enabled
 from monte_carlo import run_monte_carlo, run_stress_scenarios, get_backtest_returns
 from strategy_optimizer import optimize_strategy, quick_optimize
 from trade_journal_v2 import (
@@ -787,10 +788,34 @@ async def health():
     last_scan = sched.get_last_scan()
     return {
         "status": "ok",
-        "version": "5.1",
+        "version": "5.4",
         "ai_enabled": is_enabled(),
         "gemini_enabled": gemini_enabled(),
+        "notify_enabled": notify_enabled(),
         "regime": last_scan.get("regime", "unknown"),
         "session_mode": last_scan.get("session_mode", "unknown"),
         "last_scan": last_scan.get("timestamp"),
     }
+
+
+@app.post("/api/test-notification")
+async def test_notification():
+    """Test e-posta bildirimi gonder."""
+    if not notify_enabled():
+        return {"status": "error", "message": "NOTIFY_EMAIL veya SMTP_PASSWORD tanimli degil. Railway Variables'a ekleyin."}
+    try:
+        send_trade_notification(
+            action="long",
+            ticker="TEST",
+            qty=10,
+            price=100.00,
+            confidence=9,
+            reasoning="Bu bir test bildirimidir. Sistem dogru calisiyorsa bu maili alacaksiniz.",
+            audit_verdict="APPROVE",
+            stop_loss="95.00",
+            take_profit="115.00",
+            risk_pct=1.5,
+        )
+        return {"status": "ok", "message": "Test e-postasi gonderildi!"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
