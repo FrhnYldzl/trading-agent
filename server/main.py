@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
     init_db()
     init_journal_v2()
     # V2: Scheduler — her 10 dk tarama, piyasa acik/kapali farketmez
-    sched.start(broker=broker, auto_execute=False, interval_minutes=10)
+    sched.start(broker=broker, auto_execute=True, interval_minutes=10)
     print("AI Trading Agent V2 baslatildi >> http://localhost:8000")
     yield
     sched.stop()
