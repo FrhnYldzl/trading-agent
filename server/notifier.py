@@ -138,13 +138,14 @@ def send_trade_notification(
 
 
 def _send_email(smtp_email, smtp_password, to_email, msg):
-    """E-posta gonder. Resend API (HTTP) veya Gmail SMTP dener."""
+    """E-posta gonder. Tum yontemleri dener: Resend API, Gmail SSL, Gmail TLS."""
     import urllib.request
     import urllib.error
 
-    resend_key = os.getenv("RESEND_API_KEY") or _get("RESEND_API_KEY")
+    errors = []
 
     # Yontem 1: Resend API (HTTP — Railway'de SMTP bloklu oldugu icin)
+    resend_key = os.getenv("RESEND_API_KEY") or _get("RESEND_API_KEY")
     if resend_key:
         try:
             payload = json.dumps({
@@ -163,32 +164,39 @@ def _send_email(smtp_email, smtp_password, to_email, msg):
                 resp_text = resp.read().decode()
                 print(f"[Notifier] Resend API ile gonderildi: {resp_text}")
             return
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode() if e.fp else str(e)
-            print(f"[Notifier] Resend HTTP hatasi ({e.code}): {error_body}")
-            raise Exception(f"Resend error {e.code}: {error_body}")
         except Exception as e:
-            print(f"[Notifier] Resend basarisiz: {e}")
+            err_msg = str(e)
+            if hasattr(e, 'read'):
+                try: err_msg = e.read().decode()
+                except: pass
+            errors.append(f"Resend: {err_msg}")
+            print(f"[Notifier] Resend basarisiz: {err_msg}")
 
-    # Yontem 2: SSL (port 465)
+    # Yontem 2: Gmail SSL (port 465)
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
+        print("[Notifier] Gmail SSL (465) ile gonderildi")
         return
     except Exception as e:
+        errors.append(f"SSL-465: {e}")
         print(f"[Notifier] SSL (465) basarisiz: {e}")
 
-    # Yontem 3: TLS (port 587) — fallback
+    # Yontem 3: Gmail TLS (port 587)
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
+        print("[Notifier] Gmail TLS (587) ile gonderildi")
         return
     except Exception as e:
+        errors.append(f"TLS-587: {e}")
         print(f"[Notifier] TLS (587) basarisiz: {e}")
-        raise e
+
+    # Hepsi basarisiz
+    raise Exception(f"Tum yontemler basarisiz: {' | '.join(errors)}")
 
 
 def send_daily_summary(
