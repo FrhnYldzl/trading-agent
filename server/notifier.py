@@ -160,8 +160,13 @@ def _send_email(smtp_email, smtp_password, to_email, msg):
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
-                print(f"[Notifier] Resend API ile gonderildi: {resp.read().decode()}")
+                resp_text = resp.read().decode()
+                print(f"[Notifier] Resend API ile gonderildi: {resp_text}")
             return
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode() if e.fp else str(e)
+            print(f"[Notifier] Resend HTTP hatasi ({e.code}): {error_body}")
+            raise Exception(f"Resend error {e.code}: {error_body}")
         except Exception as e:
             print(f"[Notifier] Resend basarisiz: {e}")
 
