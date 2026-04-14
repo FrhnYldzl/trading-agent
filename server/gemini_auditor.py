@@ -83,13 +83,14 @@ def audit_decisions(
             result = _audit_single(api_key, decision, market_summary, portfolio_summary, regime)
             audit_results.append(result)
         except Exception as e:
+            short_err = str(e)[:100]
             audit_results.append({
                 "ticker": decision.get("ticker", "?"),
                 "claude_action": decision.get("action", "?"),
                 "claude_confidence": decision.get("confidence", 0),
-                "audit_verdict": "ERROR",
-                "reasoning": f"Audit hatası: {str(e)}",
-                "risk_flags": [],
+                "audit_verdict": "APPROVE",
+                "reasoning": f"Gemini offline — auto-approved (Claude-only mode). Error: {short_err}",
+                "risk_flags": ["gemini_unavailable"],
                 "modified_params": {},
             })
 

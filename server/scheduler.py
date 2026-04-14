@@ -130,7 +130,9 @@ def run_scan(broker=None, auto_execute: bool = False):
     _log_scan(result)
 
     # 6. Gemini Audit (Council modu — iki AI onaylarsa işlem yapılır)
+    #    Gemini başarısız olursa fallback: Claude kararı direkt geçer
     audit_results = []
+    gemini_status = "ok"
     try:
         from gemini_auditor import audit_decisions, is_enabled as gemini_enabled
         if gemini_enabled() and result.get("decisions"):
@@ -141,9 +143,19 @@ def run_scan(broker=None, auto_execute: bool = False):
                 regime=result.get("regime", "unknown"),
             )
     except Exception as e:
-        print(f"[Gemini Audit] Hata: {e}")
+        gemini_status = "unavailable"
+        print(f"[Gemini Audit] Kullanılamıyor (fallback: Claude-only mode): {e}")
+        # Fallback: Her karar için AUTO-APPROVE oluştur
+        for d in result.get("decisions", []):
+            audit_results.append({
+                "ticker": d.get("ticker", ""),
+                "audit_verdict": "APPROVE",
+                "reasoning": "Gemini unavailable — auto-approved by Claude-only fallback",
+                "risk_flag": "gemini_offline",
+            })
 
     _last_scan["audit_results"] = audit_results
+    _last_scan["gemini_status"] = gemini_status
 
     # 7. Otomatik islem (sadece piyasa acikken + auto_execute=True)
     if auto_execute and market_open and broker:
