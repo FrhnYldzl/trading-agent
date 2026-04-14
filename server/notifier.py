@@ -5,6 +5,7 @@ Islem gerceklestiginde e-posta bildirimi gonderir.
 Gmail SMTP kullanir (App Password gerekli).
 """
 
+import json
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -137,19 +138,45 @@ def send_trade_notification(
 
 
 def _send_email(smtp_email, smtp_password, to_email, msg):
-    """Gmail SMTP ile e-posta gonder. SSL ve TLS dener."""
-    # Yontem 1: SSL (port 465) — Railway'de daha guvenilir
+    """E-posta gonder. Resend API (HTTP) veya Gmail SMTP dener."""
+    import urllib.request
+    import urllib.error
+
+    resend_key = os.getenv("RESEND_API_KEY") or _get("RESEND_API_KEY")
+
+    # Yontem 1: Resend API (HTTP — Railway'de SMTP bloklu oldugu icin)
+    if resend_key:
+        try:
+            payload = json.dumps({
+                "from": "Meridian Capital <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": msg["Subject"],
+                "html": [p.get_payload(decode=True).decode() for p in msg.get_payload() if p.get_content_type() == "text/html"][0],
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=payload,
+                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[Notifier] Resend API ile gonderildi: {resp.read().decode()}")
+            return
+        except Exception as e:
+            print(f"[Notifier] Resend basarisiz: {e}")
+
+    # Yontem 2: SSL (port 465)
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
         return
     except Exception as e:
         print(f"[Notifier] SSL (465) basarisiz: {e}")
 
-    # Yontem 2: TLS (port 587) — fallback
+    # Yontem 3: TLS (port 587) — fallback
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
