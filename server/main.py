@@ -803,19 +803,22 @@ async def test_notification():
     """Test e-posta bildirimi gonder."""
     if not notify_enabled():
         return {"status": "error", "message": "NOTIFY_EMAIL veya SMTP_PASSWORD tanimli degil. Railway Variables'a ekleyin."}
-    try:
-        send_trade_notification(
-            action="long",
-            ticker="TEST",
-            qty=10,
-            price=100.00,
-            confidence=9,
-            reasoning="Bu bir test bildirimidir. Sistem dogru calisiyorsa bu maili alacaksiniz.",
-            audit_verdict="APPROVE",
-            stop_loss="95.00",
-            take_profit="115.00",
-            risk_pct=1.5,
-        )
-        return {"status": "ok", "message": "Test e-postasi gonderildi!"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    import threading
+    def _send():
+        try:
+            send_trade_notification(
+                action="long",
+                ticker="TEST",
+                qty=10,
+                price=100.00,
+                confidence=9,
+                reasoning="Bu bir test bildirimidir. Sistem dogru calisiyorsa bu maili alacaksiniz. Meridian Capital AI Trading Terminal aktif ve calisiyor.",
+                audit_verdict="APPROVE",
+                stop_loss="95.00",
+                take_profit="115.00",
+                risk_pct=1.5,
+            )
+        except Exception as e:
+            print(f"[Test Notifier] Hata: {e}")
+    threading.Thread(target=_send, daemon=True).start()
+    return {"status": "ok", "message": "Test e-postasi gonderiliyor... 10-15 saniye icinde mailinize dusecek."}

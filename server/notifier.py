@@ -132,14 +132,31 @@ def send_trade_notification(
     msg.attach(MIMEText(plain, "plain"))
     msg.attach(MIMEText(html, "html"))
 
+    _send_email(smtp_email, smtp_password, to_email, msg)
+    print(f"[Notifier] E-posta gonderildi: {subject}")
+
+
+def _send_email(smtp_email, smtp_password, to_email, msg):
+    """Gmail SMTP ile e-posta gonder. SSL ve TLS dener."""
+    # Yontem 1: SSL (port 465) — Railway'de daha guvenilir
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, to_email, msg.as_string())
+        return
+    except Exception as e:
+        print(f"[Notifier] SSL (465) basarisiz: {e}")
+
+    # Yontem 2: TLS (port 587) — fallback
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
-        print(f"[Notifier] E-posta gonderildi: {subject}")
+        return
     except Exception as e:
-        print(f"[Notifier] E-posta hatasi: {e}")
+        print(f"[Notifier] TLS (587) basarisiz: {e}")
+        raise e
 
 
 def send_daily_summary(
@@ -212,10 +229,7 @@ def send_daily_summary(
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, to_email, msg.as_string())
+        _send_email(smtp_email, smtp_password, to_email, msg)
         print(f"[Notifier] Gunluk ozet gonderildi: {subject}")
     except Exception as e:
         print(f"[Notifier] Ozet e-posta hatasi: {e}")
