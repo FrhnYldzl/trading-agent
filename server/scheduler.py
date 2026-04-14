@@ -25,6 +25,7 @@ from market_scanner import get_market_data, is_market_open, is_premarket
 from claude_brain import run_brain, review_past_trades, pdt_trades_left
 from database import get_recent_trades
 from trade_journal import init_journal_db, get_learning_context
+from notifier import send_trade_notification, send_daily_summary, is_enabled as notify_enabled
 
 DB_PATH = Path(__file__).parent / "trades.db"
 
@@ -381,6 +382,24 @@ def _execute_decisions(decisions: list, broker, portfolio: dict, market_data: di
             broker.execute(action, ticker, qty, price)
             print(f"[Auto] {action.upper()} {ticker} x{qty} @ ${price:.2f} "
                   f"(confidence={confidence}, risk={sizing.get('risk_pct',0)}%)")
+
+            # E-posta bildirimi gonder
+            try:
+                audit = audit_map.get(ticker, {})
+                send_trade_notification(
+                    action=action,
+                    ticker=ticker,
+                    qty=qty,
+                    price=price,
+                    confidence=confidence,
+                    reasoning=d.get("reasoning", ""),
+                    audit_verdict=audit.get("audit_verdict", "APPROVE"),
+                    stop_loss=d.get("stop_loss", ""),
+                    take_profit=d.get("take_profit", ""),
+                    risk_pct=sizing.get("risk_pct", 0),
+                )
+            except Exception as e:
+                print(f"[Notifier] Bildirim hatasi: {e}")
         except Exception as e:
             print(f"[Auto] HATA {ticker}: {e}")
 
