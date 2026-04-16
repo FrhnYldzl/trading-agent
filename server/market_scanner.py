@@ -38,6 +38,23 @@ from config import (
     SIGNAL_GAP_THRESHOLD, SIGNAL_VOLUME_THRESHOLD,
 )
 
+# V5.5: Broad scan config (default KAPALI, prod'u etkilemez)
+try:
+    from config import (
+        BROAD_SCAN_ENABLED,
+        PREFILTER_MIN_PRICE, PREFILTER_MIN_AVG_VOLUME,
+        PREFILTER_MIN_CHANGE_PCT, PREFILTER_MIN_VOL_RATIO,
+        PREFILTER_TOP_N,
+    )
+except ImportError:
+    # Eski config.py ile backward compat
+    BROAD_SCAN_ENABLED = False
+    PREFILTER_MIN_PRICE = 10.0
+    PREFILTER_MIN_AVG_VOLUME = 1_000_000
+    PREFILTER_MIN_CHANGE_PCT = 2.0
+    PREFILTER_MIN_VOL_RATIO = 1.3
+    PREFILTER_TOP_N = 20
+
 # Config'den al
 WATCHLIST = _CFG_WATCHLIST
 BENCHMARK = _CFG_BENCHMARK
@@ -45,6 +62,29 @@ BENCHMARK = _CFG_BENCHMARK
 # ─────────────────────────────────────────────────────────────────
 
 def get_market_data() -> dict:
+    """
+    V5.5 Feature-flag wrapper.
+    - BROAD_SCAN_ENABLED=false (default) → Core 15 (eski davranış, birebir aynı)
+    - BROAD_SCAN_ENABLED=true → NASDAQ 100 + Core 15 → pre-filter → top N
+    - Broad scan hata verirse → Core 15 fallback (asla boş dönmez)
+    """
+    if BROAD_SCAN_ENABLED:
+        try:
+            result = _get_market_data_broad()
+            # Sanity check: broad boşsa fallback
+            if not result or "error" in result:
+                return _get_market_data_core()
+            # Meta bilgide mode işaretle
+            if "_meta" in result:
+                result["_meta"]["scan_mode"] = "broad"
+            return result
+        except Exception:
+            # Herhangi bir hata → eski davranış
+            return _get_market_data_core()
+    return _get_market_data_core()
+
+
+def _get_market_data_core() -> dict:
     """
     Tüm watchlist icin son 60 günlük OHLCV verisi + gelismis teknik indikatörler döndürür.
 
@@ -861,3 +901,215 @@ def _pearson_correlation(x: list, y: list) -> float:
         return 0.0
 
     return round(num / (den_x * den_y), 2)
+
+
+# ═══════════════════════════════════════════════════════════════
+# V5.5: Broad Scan — İki Aşamalı Tarama (NDX 100 + Core 15)
+# ═══════════════════════════════════════════════════════════════
+
+def _get_market_data_broad() -> dict:
+    """
+    İki aşamalı tarama:
+    1. NDX 100 + Core 15 (~110 sembol) tek batch fetch
+    2. Pre-filter: price, avg_volume, change_pct VEYA vol_ratio
+    3. Core 15 GARANTİLİ, kalan adaylardan top N eklenir
+    4. Final set için mevcut tüm indikatörler hesaplanır (Core ile aynı format)
+
+    Hata veya boş sonuç durumunda wrapper Core fallback'e düşer.
+    """
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame
+    from universe import get_broad_universe
+
+    broad_tickers = get_broad_universe(include_core=True)
+    core_set = set(WATCHLIST)
+
+    client = StockHistoricalDataClient(
+        api_key=_get("ALPACA_API_KEY"),
+        secret_key=_get("ALPACA_SECRET_KEY"),
+    )
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=LOOKBACK_DAYS)
+
+    # Tek batch request (~110 sembol, Alpaca izin veriyor)
+    req = StockBarsRequest(
+        symbol_or_symbols=broad_tickers,
+        timeframe=TimeFrame.Day,
+        start=start, end=end, feed="iex",
+    )
+    bars = client.get_stock_bars(req)
+
+    # ── AŞAMA 1: Pre-filter (hızlı, hesap ucuz) ─────────────────
+    candidates = []
+    prefilter_stats = {"total": 0, "passed_price": 0, "passed_volume": 0,
+                       "passed_momentum": 0, "final": 0}
+
+    for ticker in broad_tickers:
+        try:
+            ticker_bars = bars[ticker]
+            if len(ticker_bars) < 20:
+                continue
+            prefilter_stats["total"] += 1
+
+            closes = [float(b.close) for b in ticker_bars]
+            volumes = [float(b.volume) for b in ticker_bars]
+
+            current = closes[-1]
+            prev_close = closes[-2]
+            avg_vol_20 = sum(volumes[-20:]) / 20
+            vol_ratio = volumes[-1] / avg_vol_20 if avg_vol_20 > 0 else 0
+            change_pct = (current - prev_close) / prev_close * 100 if prev_close > 0 else 0
+
+            # Core her zaman geçer (garanti)
+            is_core = ticker in core_set
+
+            # Filtre 1: Fiyat (penny stock yok)
+            if current < PREFILTER_MIN_PRICE and not is_core:
+                continue
+            prefilter_stats["passed_price"] += 1
+
+            # Filtre 2: Likidite
+            if avg_vol_20 < PREFILTER_MIN_AVG_VOLUME and not is_core:
+                continue
+            prefilter_stats["passed_volume"] += 1
+
+            # Filtre 3: Momentum (change VEYA volume patlaması)
+            has_momentum = (abs(change_pct) >= PREFILTER_MIN_CHANGE_PCT or
+                            vol_ratio >= PREFILTER_MIN_VOL_RATIO)
+            if not has_momentum and not is_core:
+                continue
+            prefilter_stats["passed_momentum"] += 1
+
+            # Hızlı skor (detaylı momentum_score değil, sadece sıralama için)
+            quick_score = abs(change_pct) * 2 + (vol_ratio - 1) * 10
+            candidates.append((ticker, quick_score, is_core))
+
+        except Exception:
+            continue
+
+    # ── AŞAMA 2: Top N seçimi + Core garantisi ──────────────────
+    # Core 15 her zaman dahil; kalan slot'lara non-core adayları skor sırasıyla ekle
+    non_core_sorted = sorted(
+        [(t, s) for t, s, ic in candidates if not ic],
+        key=lambda x: x[1], reverse=True,
+    )
+
+    final_set = set(WATCHLIST)  # Core garanti
+    for ticker, _ in non_core_sorted:
+        if len(final_set) >= len(WATCHLIST) + PREFILTER_TOP_N:
+            break
+        final_set.add(ticker)
+
+    prefilter_stats["final"] = len(final_set)
+    final_tickers = sorted(final_set)
+
+    # ── AŞAMA 3: Detaylı indikatör hesabı (mevcut logic) ────────
+    result = {}
+    spy_change = 0.0
+
+    for ticker in final_tickers:
+        try:
+            ticker_bars = bars[ticker]
+            if len(ticker_bars) < 5:
+                continue
+
+            opens   = [float(b.open) for b in ticker_bars]
+            highs   = [float(b.high) for b in ticker_bars]
+            lows    = [float(b.low) for b in ticker_bars]
+            closes  = [float(b.close) for b in ticker_bars]
+            volumes = [float(b.volume) for b in ticker_bars]
+
+            current    = closes[-1]
+            prev_close = closes[-2]
+            today_open = opens[-1]
+            today_high = highs[-1]
+            today_low  = lows[-1]
+
+            change_pct = round((current - prev_close) / prev_close * 100, 2)
+            gap_pct    = round((today_open - prev_close) / prev_close * 100, 2)
+
+            ema9  = _ema(closes, 9)
+            ema21 = _ema(closes, 21)
+            ema50 = _ema(closes, 50)
+            rsi14 = _rsi(closes, 14)
+            atr14 = _atr(highs, lows, closes, 14)
+            atr_pct = round(atr14 / current * 100, 2) if current > 0 else 0
+
+            avg_vol_20 = sum(volumes[-20:]) / min(len(volumes), 20) if volumes else 0
+            vol_ratio  = round(volumes[-1] / avg_vol_20, 2) if avg_vol_20 > 0 else 0
+
+            vwap = _vwap_approx(highs[-5:], lows[-5:], closes[-5:], volumes[-5:])
+            macd_data = _macd(closes)
+            bb_data = _bollinger_bands(closes)
+            trend = _detect_trend(closes, ema9, ema21, ema50)
+
+            signal = _generate_signal(
+                ema9, ema21, ema50, rsi14, vol_ratio, change_pct, gap_pct, trend,
+                macd_data=macd_data, bb_data=bb_data, current_price=current,
+            )
+            momentum_score = _calc_momentum_score(
+                change_pct, gap_pct, vol_ratio, rsi14,
+                ema9, ema21, ema50, atr_pct, trend,
+                macd_data=macd_data, bb_data=bb_data, current_price=current,
+            )
+
+            if ticker == BENCHMARK:
+                spy_change = change_pct
+
+            result[ticker] = {
+                "price":         round(current, 2),
+                "open":          round(today_open, 2),
+                "high":          round(today_high, 2),
+                "low":           round(today_low, 2),
+                "prev_close":    round(prev_close, 2),
+                "change_pct":    change_pct,
+                "gap_pct":       gap_pct,
+                "volume":        int(volumes[-1]),
+                "avg_volume_20d": int(avg_vol_20),
+                "volume_ratio":  vol_ratio,
+                "ema9":          round(ema9, 2),
+                "ema21":         round(ema21, 2),
+                "ema50":         round(ema50, 2),
+                "rsi14":         round(rsi14, 1),
+                "atr14":         round(atr14, 2),
+                "atr_pct":       atr_pct,
+                "vwap":          round(vwap, 2),
+                "momentum_score": momentum_score,
+                "signal":        signal,
+                "trend":         trend,
+                "macd":          macd_data["macd"],
+                "macd_signal":   macd_data["signal"],
+                "macd_histogram": macd_data["histogram"],
+                "macd_cross":    macd_data["cross"],
+                "bb_upper":      bb_data["upper"],
+                "bb_middle":     bb_data["middle"],
+                "bb_lower":      bb_data["lower"],
+                "bb_width":      bb_data["width"],
+                "bb_position":   bb_data["position"],
+                "bars_5d":       [round(c, 2) for c in closes[-5:]],
+                "relative_strength": round(change_pct - spy_change, 2),
+                "is_core":       ticker in core_set,  # Broad'ta eklenen bir aday mı
+            }
+        except Exception:
+            continue
+
+    market_open = is_market_open()
+    regime = _detect_regime(result)
+
+    result["_meta"] = {
+        "market_open":  market_open,
+        "scan_time":    datetime.now(timezone.utc).isoformat(),
+        "regime":       regime,
+        "spy_change":   spy_change,
+        "total_stocks": len([k for k in result if not k.startswith("_")]),
+        "bullish_count": len([k for k, v in result.items()
+                              if isinstance(v, dict) and v.get("signal") == "strong_buy"]),
+        "scan_mode":    "broad",
+        "prefilter_stats": prefilter_stats,
+        "core_count":   len(core_set),
+        "candidates_added": len(final_set) - len(core_set),
+    }
+
+    return result

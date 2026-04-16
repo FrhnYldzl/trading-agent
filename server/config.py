@@ -88,6 +88,22 @@ SIGNAL_GAP_THRESHOLD = _get("SIGNAL_GAP_THRESHOLD", 4.0, float)
 SIGNAL_VOLUME_THRESHOLD = _get("SIGNAL_VOLUME_THRESHOLD", 2.0, float)
 
 # ═══════════════════════════════════════════════════════════════
+# BROAD SCAN (V5.5) — İki Aşamalı Tarama
+# ═══════════════════════════════════════════════════════════════
+# KAPALI default. Açıldığında: NASDAQ 100 + Core 15 taranır,
+# pre-filter'dan geçenler top N'e indirgenir, sonra detaylı analiz.
+# Kapalıyken mevcut davranış birebir aynı (Core 15 sadece).
+
+BROAD_SCAN_ENABLED = _get("BROAD_SCAN_ENABLED", "false").lower() in ("true", "1", "yes")
+
+# Pre-filter (Tier 2 → Claude) eşikleri
+PREFILTER_MIN_PRICE = _get("PREFILTER_MIN_PRICE", 10.0, float)        # Penny stock filtresi
+PREFILTER_MIN_AVG_VOLUME = _get("PREFILTER_MIN_AVG_VOLUME", 1_000_000, int)  # Likidite tabanı
+PREFILTER_MIN_CHANGE_PCT = _get("PREFILTER_MIN_CHANGE_PCT", 2.0, float)      # |change%| eşiği
+PREFILTER_MIN_VOL_RATIO = _get("PREFILTER_MIN_VOL_RATIO", 1.3, float)        # Hacim patlaması eşiği
+PREFILTER_TOP_N = _get("PREFILTER_TOP_N", 20, int)                            # Claude'a giden aday sayısı
+
+# ═══════════════════════════════════════════════════════════════
 # SEKTÖR HARİTASI (diversifikasyon kontrolü için)
 # ═══════════════════════════════════════════════════════════════
 
