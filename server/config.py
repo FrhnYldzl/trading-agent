@@ -104,6 +104,24 @@ PREFILTER_MIN_VOL_RATIO = _get("PREFILTER_MIN_VOL_RATIO", 1.3, float)        # H
 PREFILTER_TOP_N = _get("PREFILTER_TOP_N", 20, int)                            # Claude'a giden aday sayısı
 
 # ═══════════════════════════════════════════════════════════════
+# AKILLI ZAMANLAYICI (V5.6) — Adaptive Scan Frequency
+# ═══════════════════════════════════════════════════════════════
+# AÇIK default. Tarama sıklığını günün saatine göre ayarlar:
+#   Market açık (9:30-16 ET):    her 5 dk   (yoğun mod)
+#   Pre-market   (4-9:30 ET):    her 15 dk
+#   After-hours  (16-20 ET):     her 30 dk
+#   Gece         (20-4 ET):      her 60 dk
+#   Hafta sonu   (Cmt-Pzr):      her 180 dk (3 saat)
+# Kapatmak için: SMART_SCHEDULE_ENABLED=false → eski 10 dk her zaman
+
+SMART_SCHEDULE_ENABLED = _get("SMART_SCHEDULE_ENABLED", "true").lower() in ("true", "1", "yes")
+SMART_INTERVAL_MARKET = _get("SMART_INTERVAL_MARKET", 5, int)        # dk, market açık
+SMART_INTERVAL_PREMARKET = _get("SMART_INTERVAL_PREMARKET", 15, int) # dk, pre-market
+SMART_INTERVAL_AFTERHOURS = _get("SMART_INTERVAL_AFTERHOURS", 30, int) # dk, after-hours
+SMART_INTERVAL_NIGHT = _get("SMART_INTERVAL_NIGHT", 60, int)         # dk, gece
+SMART_INTERVAL_WEEKEND = _get("SMART_INTERVAL_WEEKEND", 180, int)    # dk, hafta sonu
+
+# ═══════════════════════════════════════════════════════════════
 # SEKTÖR HARİTASI (diversifikasyon kontrolü için)
 # ═══════════════════════════════════════════════════════════════
 

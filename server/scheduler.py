@@ -224,6 +224,78 @@ def get_last_review() -> dict:
 # Scheduler baslat / durdur
 # ─────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────
+# V5.6: Akilli Zamanlayici (Adaptive Scan Frequency)
+# Mod tespit + son tarama zamanina gore skip karar
+# ─────────────────────────────────────────────────────────────────
+
+_last_dispatch_time: dict = {"timestamp": None, "mode": None}
+
+
+def _detect_scan_mode() -> tuple[str, int]:
+    """
+    Su anki saate gore tarama modu ve interval (dk) dondur.
+    NY (America/New_York) saatine gore (DST otomatik).
+
+    Returns: (mode_name, interval_minutes)
+    """
+    try:
+        from pytz import timezone as pytz_tz
+        from config import (
+            SMART_INTERVAL_MARKET, SMART_INTERVAL_PREMARKET,
+            SMART_INTERVAL_AFTERHOURS, SMART_INTERVAL_NIGHT,
+            SMART_INTERVAL_WEEKEND,
+        )
+        ny = datetime.now(pytz_tz('America/New_York'))
+        weekday = ny.weekday()  # 0=Mon, 6=Sun
+        hour = ny.hour
+        minute = ny.minute
+
+        # Hafta sonu (Cumartesi=5, Pazar=6)
+        if weekday >= 5:
+            return ("weekend", SMART_INTERVAL_WEEKEND)
+
+        # Hafta ici saat dilimleri (NY zamani)
+        # Market open: 09:30-16:00 ET
+        if (hour == 9 and minute >= 30) or (10 <= hour < 16):
+            return ("market_open", SMART_INTERVAL_MARKET)
+        # Pre-market: 04:00-09:30 ET
+        if 4 <= hour < 9 or (hour == 9 and minute < 30):
+            return ("pre_market", SMART_INTERVAL_PREMARKET)
+        # After-hours: 16:00-20:00 ET
+        if 16 <= hour < 20:
+            return ("after_hours", SMART_INTERVAL_AFTERHOURS)
+        # Gece: 20:00-04:00 ET
+        return ("night", SMART_INTERVAL_NIGHT)
+
+    except Exception as e:
+        # Pytz yoksa veya config eksikse, guvenli fallback: her 10 dk
+        print(f"[SmartScheduler] Mod tespit hatasi: {e}, fallback 10 dk")
+        return ("fallback", 10)
+
+
+def smart_scan_dispatcher(broker=None, auto_execute: bool = False):
+    """
+    Her 5 dk tetiklenir, modlara gore SKIP veya RUN karari verir.
+    Son tarama zamanina bakar; mod interval'i dolmadan tarama yapmaz.
+    """
+    global _last_dispatch_time
+    mode, interval_min = _detect_scan_mode()
+
+    now = datetime.now(timezone.utc)
+    last_ts = _last_dispatch_time.get("timestamp")
+
+    if last_ts is not None:
+        elapsed_sec = (now - last_ts).total_seconds()
+        if elapsed_sec < (interval_min * 60 - 30):  # 30 sn tolerans
+            # Henuz erken, skip
+            return
+
+    print(f"[SmartScheduler] Mod: {mode} | Interval: {interval_min}dk | Tarama tetiklendi")
+    _last_dispatch_time = {"timestamp": now, "mode": mode}
+    run_scan(broker=broker, auto_execute=auto_execute)
+
+
 def start(broker=None, auto_execute: bool = False, interval_minutes: int = 10):
     """Arka planda zamanlayiciyi baslat."""
     if scheduler.running:
@@ -237,13 +309,30 @@ def start(broker=None, auto_execute: bool = False, interval_minutes: int = 10):
         cleanup = broker.cancel_all_orders()
         print(f"[Startup Cleanup] {cleanup.get('message', '?')}")
 
-    # Ana tarama: her 10 dk (piyasa acik/kapali farketmez)
-    scheduler.add_job(
-        func=lambda: run_scan(broker=broker, auto_execute=auto_execute),
-        trigger=IntervalTrigger(minutes=interval_minutes),
-        id="market_scan",
-        replace_existing=True,
-    )
+    # V5.6: Akilli mod aktif mi?
+    try:
+        from config import SMART_SCHEDULE_ENABLED
+    except ImportError:
+        SMART_SCHEDULE_ENABLED = False
+
+    if SMART_SCHEDULE_ENABLED:
+        # Akilli mod: her 5 dk dispatcher tetiklenir, mod'a gore skip/run
+        scheduler.add_job(
+            func=lambda: smart_scan_dispatcher(broker=broker, auto_execute=auto_execute),
+            trigger=IntervalTrigger(minutes=5),
+            id="market_scan",
+            replace_existing=True,
+        )
+        print("[Scheduler] V5.6: Akilli mod AKTIF (adaptive frequency)")
+    else:
+        # Eski davranis: her interval_minutes (default 10dk)
+        scheduler.add_job(
+            func=lambda: run_scan(broker=broker, auto_execute=auto_execute),
+            trigger=IntervalTrigger(minutes=interval_minutes),
+            id="market_scan",
+            replace_existing=True,
+        )
+        print(f"[Scheduler] Klasik mod: her {interval_minutes}dk")
 
     # Post-trade review: günde 2 kez
     scheduler.add_job(
