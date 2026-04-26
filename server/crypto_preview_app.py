@@ -167,14 +167,50 @@ def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.10-η",
+        "version": "5.10-η.2",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
         "account_label": _broker.account_label,
         "is_dedicated_account": _broker.is_dedicated_account,
+        "brain_enabled": _brain.enabled,
+        "brain_api_key_source": _brain.api_key_source,
         "color": "#f7931a",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/api/crypto/env-debug")
+def env_debug():
+    """
+    Diagnostic endpoint — sadece env var İSİMLERİ ve değerlerin BAŞINI
+    döner (güvenli). Hangi env var'ların container'a inject edildiğini
+    görmek için.
+    """
+    out = []
+    for k, v in os.environ.items():
+        if not isinstance(v, str):
+            continue
+        # Sensitive prefix'lerini maskele
+        if v.startswith("sk-ant-"):
+            preview = "sk-ant-...(found)"
+        elif v.startswith("PK"):
+            preview = v[:4] + "..."
+        elif len(v) > 40:
+            preview = "(long value, hidden)"
+        elif "key" in k.lower() or "secret" in k.lower() or "token" in k.lower():
+            preview = "(sensitive, hidden)"
+        else:
+            preview = v[:50]
+        out.append({"name": k, "preview": preview})
+    out.sort(key=lambda x: x["name"])
+    return {
+        "env_var_count": len(out),
+        "looks_like_anthropic_key_present": any(
+            v.startswith("sk-ant-") for v in os.environ.values()
+            if isinstance(v, str)
+        ),
+        "vars": out,
     }
 
 
@@ -452,22 +488,27 @@ def symbol_summary(symbol_path: str):
 
 
 @app.get("/api/crypto/brain")
-def brain_decisions():
+def brain_decisions(fresh: bool = False):
     """
     Claude AI Crypto Brain — multi-step reasoning.
-    Equity'deki claude_brain.run_brain() ile aynı şema.
-
-    Pahalı çağrı (Claude API), 60sn cache.
-    Force fresh için ?fresh=true kullan.
+    60sn cache. ?fresh=true ile bypass.
     """
     cache_key = "brain:core10"
-    hit = _cache_get(cache_key, ttl=60)
-    if hit is not None:
-        return hit
+    if not fresh:
+        hit = _cache_get(cache_key, ttl=60)
+        if hit is not None:
+            return hit
 
     if not _brain.enabled:
         return {
-            "error": "ANTHROPIC_API_KEY env var Railway'e eklenmemiş.",
+            "error": (
+                "Claude API key bulunamadı. "
+                f"Source: {_brain.api_key_source}. "
+                "Railway Variables tab'ında değeri 'sk-ant-' ile başlayan "
+                "bir env var ekle (örn. MERIDIAN_CRYPTO_TERMINAL ya da "
+                "ANTHROPIC_API_KEY). İsim boşluksuz, sadece A-Z/0-9/_ olmalı."
+            ),
+            "api_key_source": _brain.api_key_source,
             "decisions": [],
             "regime": "unknown",
         }
