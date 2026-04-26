@@ -1,0 +1,40 @@
+# ═══════════════════════════════════════════════════════════════════
+# Dockerfile.crypto — Meridian Capital · Crypto Module
+# ═══════════════════════════════════════════════════════════════════
+# Kullanım: SADECE Railway "meridian-crypto" projesinde build edilir.
+# Equity projesi (mevcut Dockerfile) bundan ETKİLENMEZ.
+#
+# Mevcut Dockerfile (equity) ile fark: SADECE CMD farklı.
+# Aynı server/ kodunu içerir, ama crypto_preview_app:app entrypoint'i
+# kullanır → /api/crypto/* endpoints + /static/crypto/index.html dashboard.
+# ═══════════════════════════════════════════════════════════════════
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Sistem bagimliliklari
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python bagimliliklari
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Tum proje kodu (equity dosyalari da dahildir AMA CALISTIRILMAZ;
+# crypto/risk_impl.py risk_manager.py'yi sarmaliyor, config.py kullanir,
+# bu yuzden ayni image icinde olmasi pratik)
+COPY server/ ./server/
+
+# Python module path
+ENV PYTHONPATH=/app/server
+
+# Railway PORT env var inject eder; varsayilan 8000
+ENV PORT=8000
+EXPOSE 8000
+
+WORKDIR /app/server
+
+# CRYPTO ENTRYPOINT — equity'nin main:app'inden farkli
+CMD sh -c "exec uvicorn crypto_preview_app:app --host 0.0.0.0 --port $PORT"

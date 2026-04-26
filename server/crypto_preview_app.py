@@ -37,7 +37,7 @@ from crypto import (
 )
 import os
 
-app = FastAPI(title="Trading Agent — Crypto Preview", version="5.9-δ")
+app = FastAPI(title="Trading Agent — Crypto Preview", version="5.9-ε")
 
 # Global instances — singleton tarzı, dry_run ZORUNLU
 _broker = CryptoBroker(dry_run=True, paper=True)
@@ -85,15 +85,57 @@ def _fetch_crypto_md_cached(symbols: tuple, lookback_days: int = 60):
 # Endpoints
 # ─────────────────────────────────────────────────────────────────
 
+@app.get("/api/modules")
+def modules():
+    """
+    Cross-module navigation için URL'leri ve renkleri döner.
+    Production'da MERIDIAN_*_URL env vars subdomain'e set edilir.
+    """
+    return {
+        "current": "crypto",
+        "modules": [
+            {
+                "id": "equity",
+                "label": "Equity",
+                "icon": "M",
+                "color": "#10b981",
+                "url": os.getenv("MERIDIAN_EQUITY_URL", "http://127.0.0.1:8001"),
+                "active": True,
+            },
+            {
+                "id": "crypto",
+                "label": "Crypto",
+                "icon": "₿",
+                "color": "#f7931a",
+                "url": os.getenv("MERIDIAN_CRYPTO_URL", "http://127.0.0.1:8002"),
+                "active": True,
+                "current": True,
+            },
+            {
+                "id": "options",
+                "label": "Options",
+                "icon": "σ",
+                "color": "#3b82f6",
+                "url": os.getenv("MERIDIAN_OPTIONS_URL", "http://127.0.0.1:8003"),
+                "active": False,
+                "note": "V5.11'de geliyor",
+            },
+        ],
+    }
+
+
 @app.get("/api/crypto/health")
 def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.9-α",
+        "version": "5.9-ε",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
+        "account_label": _broker.account_label,
+        "is_dedicated_account": _broker.is_dedicated_account,
+        "color": "#f7931a",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

@@ -114,9 +114,69 @@
     font-size: 14px;
   }
   .sidebar-footer {
-    padding: 14px 18px;
+    padding: 12px 14px;
     border-top: 1px solid var(--border);
     font-size: 11px;
+  }
+  .module-switcher {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .module-btn {
+    flex: 1;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-tertiary);
+    text-decoration: none;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .module-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  .module-btn.active {
+    cursor: default;
+    box-shadow: 0 0 12px var(--mod-glow);
+  }
+  .module-btn.equity { --mod-glow: rgba(16, 185, 129, 0.4); }
+  .module-btn.equity.active { background: rgba(16,185,129,0.15); border-color: #10b981; color: #34d399; }
+  .module-btn.equity:hover { border-color: #10b981; color: #34d399; }
+  .module-btn.crypto { --mod-glow: rgba(247, 147, 26, 0.4); }
+  .module-btn.crypto.active { background: rgba(247,147,26,0.15); border-color: #f7931a; color: #ffaa3a; }
+  .module-btn.crypto:hover { border-color: #f7931a; color: #ffaa3a; }
+  .module-btn.options { --mod-glow: rgba(59, 130, 246, 0.4); }
+  .module-btn.options.active { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #60a5fa; }
+  .module-btn.options:hover { border-color: #3b82f6; color: #60a5fa; }
+  .module-btn.disabled {
+    cursor: not-allowed; opacity: 0.4;
+  }
+  .module-btn.disabled:hover { transform: none; box-shadow: none; }
+  .module-label {
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 3px;
+    font-weight: 600;
+  }
+  .module-pair {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
   }
   .live-badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -693,6 +753,22 @@
     <a class="nav-item" data-route="settings" href="#/settings"><span class="nav-icon">⚙️</span> Settings</a>
   </nav>
   <div class="sidebar-footer">
+    <!-- Cross-module switcher: Equity / Crypto / Options -->
+    <div class="module-switcher" id="moduleSwitcher">
+      <!-- Populated by loadModules() — fail-safe defaults below -->
+      <div class="module-pair">
+        <a class="module-btn equity" href="http://127.0.0.1:8001" target="_blank" title="Equity (green)">M</a>
+        <div class="module-label">Equity</div>
+      </div>
+      <div class="module-pair">
+        <a class="module-btn crypto active" title="Crypto (current)">₿</a>
+        <div class="module-label">Crypto</div>
+      </div>
+      <div class="module-pair">
+        <a class="module-btn options disabled" title="Options (V5.11)">σ</a>
+        <div class="module-label">Options</div>
+      </div>
+    </div>
     <div class="live-badge">
       <span class="live-dot"></span>
       <span id="liveStatus">Connecting…</span>

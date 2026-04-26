@@ -45,13 +45,37 @@ class CryptoBroker(BaseBroker):
                  verilmesi gerekir AMA V5.9'da live'a geçilmeyecek.
     """
 
-    def __init__(self, dry_run: bool = True, paper: bool = True):
+    def __init__(self, dry_run: bool = True, paper: bool = None):
+        """
+        V5.9-ε: Multi-account support.
+        Crypto modülü kendi Alpaca hesabını kullanabilir:
+          CRYPTO_ALPACA_API_KEY     (set ise crypto-only)
+          CRYPTO_ALPACA_SECRET_KEY
+          CRYPTO_ALPACA_PAPER       (true/false)
+        Set edilmediyse default ALPACA_* key'lerine fallback.
+        """
         from alpaca.trading.client import TradingClient
         self.dry_run = dry_run
+
+        # Crypto-specific key'ler set edildi mi?
+        api_key = os.getenv("CRYPTO_ALPACA_API_KEY") or os.getenv("ALPACA_API_KEY")
+        secret_key = os.getenv("CRYPTO_ALPACA_SECRET_KEY") or os.getenv("ALPACA_SECRET_KEY")
+
+        if paper is None:
+            paper_env = (os.getenv("CRYPTO_ALPACA_PAPER", "true") or "true").lower()
+            paper = paper_env in ("true", "1", "yes")
         self.paper = paper
+
+        # Hangi hesap aktif?
+        self.account_label = os.getenv("CRYPTO_ACCOUNT_LABEL") or (
+            "Ferhan Crypto Paper" if os.getenv("CRYPTO_ALPACA_API_KEY")
+            else "Default (Equity Paper)"
+        )
+        self.is_dedicated_account = bool(os.getenv("CRYPTO_ALPACA_API_KEY"))
+
         self.client = TradingClient(
-            api_key=os.getenv("ALPACA_API_KEY"),
-            secret_key=os.getenv("ALPACA_SECRET_KEY"),
+            api_key=api_key,
+            secret_key=secret_key,
             paper=paper,
         )
         # Equity broker'daki gibi 10sn timeout
@@ -93,9 +117,12 @@ class CryptoBroker(BaseBroker):
                 "asset_class": "crypto",
                 "paper": self.paper,
                 "dry_run": self.dry_run,
+                "account_label": self.account_label,
+                "is_dedicated_account": self.is_dedicated_account,
             }
         except Exception as e:
-            return {"error": str(e), "asset_class": "crypto"}
+            return {"error": str(e), "asset_class": "crypto",
+                    "account_label": getattr(self, "account_label", "?")}
 
     def get_position(self, ticker: str) -> dict | None:
         """
