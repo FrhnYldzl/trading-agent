@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "_note": "Crypto module config. Railway crypto project: Settings → Config Path → 'railway.crypto.json'. Equity project default 'railway.json' kullanmaya devam eder, dokunulmuyor.",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile.crypto"
+  },
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
