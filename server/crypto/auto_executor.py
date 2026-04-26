@@ -251,6 +251,10 @@ class CryptoAutoExecutor:
 
         # 5+6+7. Per-decision gates → size → execute
         positions_now = portfolio.get("positions", [])
+        # ⚡ V5.10-η.3 fix: bu run sırasında execute edilen "pending" pozisyonları
+        # da gate kontrolünde say. Önceki bug: 6 LONG hepsi gate'i geçiyordu çünkü
+        # gate kontrolü sadece run BAŞINDAKİ pozisyon sayısına bakıyordu.
+        pending_executions: list[dict] = []
         for d in decisions:
             ticker = d.get("ticker", "?")
             action = (d.get("action") or "").lower()
@@ -259,9 +263,9 @@ class CryptoAutoExecutor:
             if action not in ("long", "close_long", "reduce"):
                 continue
 
-            # Per-decision gate stack
+            # Per-decision gate stack (mevcut + bu run'da pending olanları say)
             gate_block = self._check_decision_gates(
-                d, positions_now, equity,
+                d, positions_now, pending_executions, equity,
             )
             if gate_block:
                 result["blocked_by_gate"][ticker] = gate_block
@@ -308,6 +312,17 @@ class CryptoAutoExecutor:
                 if exec_result.get("status") in ("filled", "pending", "dry_run"):
                     result["decisions_executed"] += 1
                     self._last_order_per_symbol[ticker] = _now_utc()
+                    # ⚡ V5.10-η.3: Pending listesine ekle ki sonraki kararlarda gate sayar
+                    pending_executions.append({
+                        "symbol": ticker,
+                        "market_value": sizing.get("position_value", 0),
+                        "asset_group": (
+                            d.get("asset_group")
+                            or self.asset_group_map.get(ticker, "Unknown")
+                        ),
+                        "qty": sizing.get("qty", 0),
+                        "_pending": True,
+                    })
                 else:
                     result["decisions_blocked"] += 1
                     result["blocked_by_gate"][ticker] = (
@@ -368,20 +383,39 @@ class CryptoAutoExecutor:
             }
         return {"blocked": False, "current_pct": round(change_pct, 2)}
 
-    def _check_decision_gates(self, decision: dict, positions: list, equity: float) -> Optional[str]:
+    def _check_decision_gates(
+        self, decision: dict, positions: list,
+        pending_executions: list, equity: float,
+    ) -> Optional[str]:
+        """
+        Gate kontrolü. positions = mevcut açık pozisyonlar.
+        pending_executions = bu run sırasında execute edilenler (intra-run sayım).
+
+        ⚡ V5.10-η.3 fix: max_positions ve group_concentration gate'leri
+        artık intra-run pending'leri de hesaba katıyor.
+        """
         ticker = decision.get("ticker", "?")
         action = (decision.get("action") or "").lower()
         confidence = int(decision.get("confidence", 0))
+
+        # Mevcut + pending = bu kararın "öncesinde" portföyde olacak şey
+        all_held = list(positions) + list(pending_executions)
 
         # Gate 1: Min confidence
         if confidence < self.gates["MIN_CONFIDENCE"]:
             return f"confidence {confidence} < {self.gates['MIN_CONFIDENCE']}"
 
-        # Gate 2: Max open positions (sadece yeni long için)
+        # Gate 2: Max open positions (mevcut + pending)
         if action == "long":
-            existing = sum(1 for p in positions if p.get("symbol") != ticker)
-            if existing >= self.gates["MAX_OPEN_POSITIONS"]:
-                return f"max positions reached ({self.gates['MAX_OPEN_POSITIONS']})"
+            # Aynı sembol pozisyonu varsa "yeni" sayılmıyor (add-on durumu)
+            distinct_symbols = {p.get("symbol") for p in all_held if p.get("symbol") != ticker}
+            existing_count = len(distinct_symbols)
+            if existing_count >= self.gates["MAX_OPEN_POSITIONS"]:
+                return (
+                    f"max positions reached "
+                    f"({existing_count}/{self.gates['MAX_OPEN_POSITIONS']} "
+                    f"{'mevcut+pending' if pending_executions else 'mevcut'})"
+                )
 
         # Gate 3: Same-symbol cooldown
         last = self._last_order_per_symbol.get(ticker)
@@ -391,16 +425,21 @@ class CryptoAutoExecutor:
                 remaining = self.gates["SYMBOL_COOLDOWN_HOURS"] - elapsed_h
                 return f"cooldown {remaining:.1f}h kaldı"
 
-        # Gate 4: Asset group concentration (sadece long için)
+        # Gate 4: Asset group concentration (mevcut + pending)
         if action == "long" and equity > 0:
             group = decision.get("asset_group") or self.asset_group_map.get(ticker, "Unknown")
             current_group_value = sum(
-                p.get("market_value", 0) for p in positions
-                if self.asset_group_map.get(p.get("symbol", ""), "Unknown") == group
+                p.get("market_value", 0) for p in all_held
+                if (p.get("asset_group")
+                    or self.asset_group_map.get(p.get("symbol", ""), "Unknown")) == group
             )
             current_group_pct = current_group_value / equity * 100
             if current_group_pct >= self.gates["MAX_GROUP_PCT"]:
-                return f"group {group} %{current_group_pct:.1f} ≥ %{self.gates['MAX_GROUP_PCT']} cap"
+                return (
+                    f"group {group} %{current_group_pct:.1f} "
+                    f"≥ %{self.gates['MAX_GROUP_PCT']} cap "
+                    f"({'pending dahil' if pending_executions else 'mevcut'})"
+                )
 
         return None  # tüm gate'ler geçti
 

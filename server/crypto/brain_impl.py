@@ -69,13 +69,28 @@ class CryptoBrain(BaseBrain):
 
     def __init__(self, model: str = None):
         self.model = model or DEFAULT_MODEL
+        # LAZY resolution — env var startup'tan sonra inject edilebilir
+        # (Railway env update → hot inject). __init__'te cache'lemiyoruz.
+        self._cached_key = None
+        self._cached_client = None
+        # İlk değer __init__'te; sonra her api/health çağrısında refresh edilir
+        self._refresh_api_key()
+
+    def _refresh_api_key(self):
+        """API key'i yeniden çöz, gerektiğinde client'ı yenile."""
         api_key, source = self._resolve_api_key()
         self.api_key_source = source
         self.enabled = bool(api_key)
-        if self.enabled:
-            self.client = anthropic.Anthropic(api_key=api_key)
-        else:
-            self.client = None
+        if api_key and api_key != self._cached_key:
+            # Yeni key — client'ı yenile
+            self._cached_client = anthropic.Anthropic(api_key=api_key)
+            self._cached_key = api_key
+
+    @property
+    def client(self):
+        # Property erişiminde key fresh olarak teyit edilir
+        # (her run_brain çağrısı zaten refresh yapacak)
+        return self._cached_client
 
     @staticmethod
     def _resolve_api_key():
