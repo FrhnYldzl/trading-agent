@@ -919,6 +919,7 @@
     <a class="nav-item" data-route="charts" href="#/charts"><span class="nav-icon">📈</span> Charts</a>
     <a class="nav-item" data-route="brain" href="#/brain"><span class="nav-icon">🧠</span> AI Brain</a>
     <a class="nav-item" data-route="autoexec" href="#/autoexec"><span class="nav-icon">⚙️</span> Auto-Execute</a>
+    <a class="nav-item" data-route="journal" href="#/journal"><span class="nav-icon">📓</span> Journal</a>
     <a class="nav-item" data-route="regime" href="#/regime"><span class="nav-icon">🧭</span> Regime</a>
 
     <div class="nav-section">Portfolio</div>
@@ -1339,6 +1340,74 @@
   </section>
 
   <!-- ============================================================ -->
+  <!-- JOURNAL                                                      -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-journal" data-view="journal">
+    <div class="view-header">
+      <div>
+        <div class="view-title">📓 Trade Journal — Seyir Defteri</div>
+        <div class="view-subtitle">
+          Brain runs · Trade events · Gate blocks · P&amp;L · Performance · Sonradan analiz
+        </div>
+      </div>
+      <div>
+        <select id="journalFilter" class="account-select" onchange="loadJournal()">
+          <option value="">All events</option>
+          <option value="brain_run">Brain Runs</option>
+          <option value="trade_open">Trade Opens</option>
+          <option value="trade_close">Trade Closes</option>
+          <option value="gate_block">Gate Blocks</option>
+          <option value="audit">Audits</option>
+          <option value="error">Errors</option>
+        </select>
+        <button class="btn" onclick="loadJournal()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Performance Stats -->
+    <div class="grid-3" style="margin-bottom: 16px;">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Last 30 Days</div></div>
+        <div class="kv-row"><span class="k">Brain runs</span><span class="v" id="jpBrainRuns">—</span></div>
+        <div class="kv-row"><span class="k">Trades closed</span><span class="v" id="jpTradesClosed">—</span></div>
+        <div class="kv-row"><span class="k">Gate blocks</span><span class="v warn" id="jpGateBlocks">—</span></div>
+        <div class="kv-row"><span class="k">Errors</span><span class="v" id="jpErrors">—</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Win/Loss</div></div>
+        <div class="kv-row"><span class="k">Win rate</span><span class="v" id="jpWinRate">—</span></div>
+        <div class="kv-row"><span class="k">Wins / Losses</span><span class="v" id="jpWL">—</span></div>
+        <div class="kv-row"><span class="k">Avg winner</span><span class="v ok" id="jpAvgW">—</span></div>
+        <div class="kv-row"><span class="k">Avg loser</span><span class="v bad" id="jpAvgL">—</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">P&amp;L</div></div>
+        <div style="font-family: var(--font-mono); font-size: 32px; font-weight: 700; margin-bottom: 8px;" id="jpTotalPnl">—</div>
+        <div class="kv-row"><span class="k">Avg hold</span><span class="v" id="jpAvgHold">—</span></div>
+        <div class="kv-row"><span class="k">Period</span><span class="v">30 days</span></div>
+      </div>
+    </div>
+
+    <!-- Open trades -->
+    <div class="section-head" style="margin-bottom: 12px;">
+      <div class="section-title"><span style="color: var(--btc);">▸</span> Açık Pozisyonlar (henüz kapatılmamış)</div>
+    </div>
+    <div class="panel" id="jpOpenTrades" style="margin-bottom: 16px;">
+      <div class="empty">Açık pozisyon yok.</div>
+    </div>
+
+    <!-- Recent events -->
+    <div class="section-head" style="margin-bottom: 12px;">
+      <div class="section-title"><span style="color: var(--btc);">▸</span> Son Olaylar</div>
+    </div>
+    <div class="panel">
+      <div id="jpEntries">
+        <div class="empty">Henüz event yok. "Run Now" tıklayarak ilk brain_run'ı oluştur.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
   <!-- REGIME                                                       -->
   <!-- ============================================================ -->
   <section class="view" id="view-regime" data-view="regime">
@@ -1562,6 +1631,8 @@ async function loadViewData(route) {
     await loadBrain(false);  // cached if available
   } else if (route === 'autoexec') {
     await loadAutoExec();
+  } else if (route === 'journal') {
+    await loadJournal();
   } else if (route === 'regime') {
     await loadRegime();
   } else if (route === 'positions') {
@@ -1910,6 +1981,119 @@ function renderBrain(r) {
   }
 
   content.innerHTML = html;
+}
+
+async function loadJournal() {
+  try {
+    const filter = document.getElementById('journalFilter')?.value || '';
+    const [perf, recent, openTrades] = await Promise.all([
+      jget(API + '/journal/performance?days=30'),
+      jget(API + '/journal?limit=100' + (filter ? `&event_type=${filter}` : '')),
+      jget(API + '/journal/open-trades'),
+    ]);
+
+    // Performance stats
+    document.getElementById('jpBrainRuns').textContent = perf.brain_runs;
+    document.getElementById('jpTradesClosed').textContent = perf.trades_closed;
+    document.getElementById('jpGateBlocks').textContent = perf.gate_blocks;
+    document.getElementById('jpErrors').textContent = perf.errors;
+    document.getElementById('jpWinRate').textContent = (perf.win_rate_pct || 0) + '%';
+    document.getElementById('jpWL').textContent = `${perf.wins} / ${perf.losses}`;
+    document.getElementById('jpAvgW').textContent = fmt.usd(perf.avg_winner_dollar);
+    document.getElementById('jpAvgL').textContent = fmt.usd(perf.avg_loser_dollar);
+    const totalEl = document.getElementById('jpTotalPnl');
+    totalEl.textContent = fmt.usd(perf.total_pnl_dollar);
+    totalEl.style.color = perf.total_pnl_dollar >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+    document.getElementById('jpAvgHold').textContent = (perf.avg_hold_minutes || 0) + ' dk';
+
+    // Open trades
+    const openEl = document.getElementById('jpOpenTrades');
+    if (!openTrades.open_trades?.length) {
+      openEl.innerHTML = '<div class="empty">Açık pozisyon yok.</div>';
+    } else {
+      openEl.innerHTML = `<table class="markets">
+        <thead><tr>
+          <th>Time</th><th>Symbol</th><th>Group</th><th>Action</th>
+          <th>Qty</th><th>Entry</th><th>Stop</th><th>TP</th><th>Conf</th>
+        </tr></thead>
+        <tbody>
+        ${openTrades.open_trades.map(t => `
+          <tr>
+            <td>${(t.timestamp || '').slice(0, 16).replace('T', ' ')}</td>
+            <td class="symbol">${t.symbol}</td>
+            <td class="group">${t.asset_group || '?'}</td>
+            <td><span class="dec-action ${t.action}">${(t.action || '').replace('_',' ')}</span></td>
+            <td>${Number(t.qty || 0).toFixed(4)}</td>
+            <td>${fmt.small(t.entry_price)}</td>
+            <td>${fmt.small(t.stop_loss)}</td>
+            <td>${fmt.small(t.take_profit)}</td>
+            <td>${t.confidence || '—'}/10</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    }
+
+    // Recent events
+    const entriesEl = document.getElementById('jpEntries');
+    const entries = recent.entries || [];
+    if (!entries.length) {
+      entriesEl.innerHTML = '<div class="empty">Henüz event yok. "Run Now" tıklayarak ilk brain_run\'ı oluştur.</div>';
+    } else {
+      entriesEl.innerHTML = `<table class="markets">
+        <thead><tr>
+          <th>Time</th><th>Event</th><th>Symbol</th><th>Detail</th>
+        </tr></thead>
+        <tbody>
+        ${entries.map(e => {
+          const ts = (e.timestamp || '').slice(0, 19).replace('T', ' ');
+          let badge = '';
+          let detail = '';
+          switch(e.event_type) {
+            case 'brain_run':
+              badge = `<span class="dec-action long">brain</span>`;
+              detail = `Strategy: ${e.strategy || '—'} · Regime: ${e.regime || '—'}`;
+              if (e.summary) detail += `<br/><span style="color: var(--text-tertiary); font-size: 11px;">${e.summary.slice(0, 200)}</span>`;
+              break;
+            case 'trade_open':
+              badge = `<span class="dec-action long">open</span>`;
+              detail = `${e.action} ${e.qty?.toFixed(4) || '?'} @ ${fmt.small(e.entry_price)} · stop ${fmt.small(e.stop_loss)} · TP ${fmt.small(e.take_profit)} · conf ${e.confidence}/10`;
+              break;
+            case 'trade_close':
+              badge = `<span class="dec-action close_long">close</span>`;
+              const plClass = (e.pnl_dollar || 0) >= 0 ? 'up' : 'down';
+              detail = `Exit ${fmt.small(e.exit_price)} · <span class="delta ${plClass}">${fmt.usd(e.pnl_dollar)} (${fmt.pct(e.pnl_pct, true)})</span> · hold ${e.hold_minutes || '?'}dk`;
+              break;
+            case 'gate_block':
+              badge = `<span class="dec-action reduce">block</span>`;
+              detail = `<span style="color: #fbbf24;">${e.blocked_reason}</span> · ${e.action} conf ${e.confidence}/10`;
+              break;
+            case 'audit':
+              badge = `<span class="dec-action watch">audit</span>`;
+              detail = `Verdict: <strong>${e.audit_verdict}</strong> — ${e.audit_note || ''}`;
+              break;
+            case 'error':
+              badge = `<span class="dec-action close_long">error</span>`;
+              detail = `<span style="color: var(--red-bright);">${e.error_message}</span>`;
+              break;
+            default:
+              badge = `<span class="dec-action hold">${e.event_type}</span>`;
+              detail = e.summary || '';
+          }
+          return `
+            <tr>
+              <td style="font-size: 10.5px; color: var(--text-tertiary);">${ts}</td>
+              <td>${badge}</td>
+              <td class="symbol">${e.symbol || '—'}</td>
+              <td style="font-size: 11.5px;">${detail}</td>
+            </tr>`;
+        }).join('')}
+        </tbody>
+      </table>`;
+    }
+  } catch(e) {
+    console.error(e);
+    document.getElementById('jpEntries').innerHTML = `<div class="empty">Journal hatası: ${e.message}</div>`;
+  }
 }
 
 async function loadAutoExec() {

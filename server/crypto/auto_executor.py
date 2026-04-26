@@ -23,6 +23,7 @@ Broker dry_run ayrı:
 
 import os
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -30,6 +31,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from core.asset_class import AssetClass
+from crypto.journal import CryptoJournal
 
 
 def _now_utc() -> datetime:
@@ -83,6 +85,7 @@ class CryptoAutoExecutor:
         data_fetcher, universe,
         asset_group_map: dict,
         cache_get=None, cache_set=None,
+        journal: Optional[CryptoJournal] = None,
     ):
         self.broker = broker
         self.brain = brain
@@ -94,6 +97,8 @@ class CryptoAutoExecutor:
         self.asset_group_map = asset_group_map
         self._cache_get = cache_get
         self._cache_set = cache_set
+        # V5.10-ε: journal — auto-init eğer dışarıdan gelmediyse
+        self.journal = journal or CryptoJournal()
 
         # Master switch
         self.enabled = (os.getenv("CRYPTO_AUTO_EXECUTE", "false").lower()
@@ -178,11 +183,16 @@ class CryptoAutoExecutor:
           5. Per-decision gates: min confidence, cooldown, position count, asset group
           6. Risk-adjusted position size
           7. Broker.execute (broker dry_run'a bağlı)
-          8. (Journal log — V5.10-ε'da eklenecek)
+          8. Journal log (V5.10-ε): brain_run + trade_open + gate_block + error
           9. Result summary, runtime state güncelle
         """
+        # V5.10-ε: Her run benzersiz UUID ile takip edilir, journal entries
+        # bu UUID üzerinden timeline'a bağlanabilir.
+        pipeline_run_id = str(uuid.uuid4())[:8]
+
         result = {
             "timestamp": _isofmt(_now_utc()),
+            "pipeline_run_id": pipeline_run_id,
             "force": force,
             "decisions_total": 0,
             "decisions_executed": 0,
@@ -203,6 +213,9 @@ class CryptoAutoExecutor:
         except Exception as e:
             result["errors"].append(f"account fetch: {e}")
             result["summary"] = "Pre-flight failed"
+            try:
+                self.journal.log_error(pipeline_run_id, f"account fetch: {e}")
+            except Exception: pass
             self.last_run = result
             self.run_count += 1
             return result
@@ -229,6 +242,7 @@ class CryptoAutoExecutor:
             return result
 
         # 3. Brain
+        brain_run_id: Optional[int] = None
         try:
             portfolio = self._get_portfolio()
             brain_out = self.brain.run_brain(
@@ -239,9 +253,23 @@ class CryptoAutoExecutor:
             result["strategy"] = brain_out.get("active_strategy")
             decisions = brain_out.get("decisions", [])
             result["decisions_total"] = len(decisions)
+            # V5.10-ε: Brain run kaydı (journal'a)
+            try:
+                brain_run_id = self.journal.log_brain_run(
+                    pipeline_run_id=pipeline_run_id,
+                    regime=regime,
+                    strategy=result["strategy"],
+                    market_snapshot=md,
+                    decisions=decisions,
+                    summary=brain_out.get("market_summary", ""),
+                )
+            except Exception as je:
+                result["errors"].append(f"journal brain_run: {je}")
         except Exception as e:
             result["errors"].append(f"brain: {e}")
             result["summary"] = f"Brain error: {e}"
+            try: self.journal.log_error(pipeline_run_id, f"brain: {e}")
+            except Exception: pass
             self.last_run = result
             self.run_count += 1
             return result
@@ -270,6 +298,20 @@ class CryptoAutoExecutor:
             if gate_block:
                 result["blocked_by_gate"][ticker] = gate_block
                 result["decisions_blocked"] += 1
+                # V5.10-ε: Journal log
+                try:
+                    self.journal.log_gate_block(
+                        pipeline_run_id=pipeline_run_id,
+                        brain_run_id=brain_run_id,
+                        symbol=ticker, action=action,
+                        confidence=int(d.get("confidence", 0)),
+                        blocked_reason=gate_block,
+                        asset_group=(
+                            d.get("asset_group")
+                            or self.asset_group_map.get(ticker, "Unknown")
+                        ),
+                    )
+                except Exception: pass
                 continue
 
             # Position size (risk_impl)
@@ -323,6 +365,28 @@ class CryptoAutoExecutor:
                         "qty": sizing.get("qty", 0),
                         "_pending": True,
                     })
+                    # V5.10-ε: Journal log trade_open
+                    try:
+                        self.journal.log_trade_open(
+                            pipeline_run_id=pipeline_run_id,
+                            brain_run_id=brain_run_id,
+                            symbol=ticker, action=action,
+                            qty=sizing.get("qty", 0),
+                            entry_price=entry,
+                            stop_loss=stop,
+                            take_profit=self._parse_price(d.get("take_profit")),
+                            confidence=int(d.get("confidence", 0)),
+                            asset_group=(
+                                d.get("asset_group")
+                                or self.asset_group_map.get(ticker, "Unknown")
+                            ),
+                            strategy=d.get("strategy"),
+                            regime=regime.get("regime"),
+                            execution_status=exec_result.get("status", "unknown"),
+                            reasoning=d.get("reasoning", ""),
+                        )
+                    except Exception as je:
+                        result["errors"].append(f"journal trade_open {ticker}: {je}")
                 else:
                     result["decisions_blocked"] += 1
                     result["blocked_by_gate"][ticker] = (

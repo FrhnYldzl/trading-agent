@@ -167,7 +167,7 @@ def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.10-η.2",
+        "version": "5.10-ε",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
@@ -559,6 +559,38 @@ def brain_decisions(fresh: bool = False):
 
     _cache_set(cache_key, result)
     return result
+
+
+@app.get("/api/crypto/journal")
+def journal_recent(limit: int = 100, event_type: str = None, symbol: str = None):
+    """Son N journal kaydı, filtre opsiyonel (event_type/symbol)."""
+    return {
+        "entries": _auto_executor.journal.get_recent(
+            limit=limit, event_type=event_type, symbol=symbol,
+        ),
+        "filters": {"limit": limit, "event_type": event_type, "symbol": symbol},
+    }
+
+
+@app.get("/api/crypto/journal/performance")
+def journal_performance(days: int = 30):
+    """Aggregate stats — son N gün."""
+    return _auto_executor.journal.get_performance(days=days)
+
+
+@app.get("/api/crypto/journal/run/{pipeline_run_id}")
+def journal_run_timeline(pipeline_run_id: str):
+    """Tek bir run'ın tüm event'leri (timeline view için)."""
+    return {
+        "pipeline_run_id": pipeline_run_id,
+        "events": _auto_executor.journal.get_by_pipeline_run(pipeline_run_id),
+    }
+
+
+@app.get("/api/crypto/journal/open-trades")
+def journal_open_trades():
+    """Açık (henüz kapatılmamış) trade'ler."""
+    return {"open_trades": _auto_executor.journal.get_open_trades()}
 
 
 @app.get("/api/crypto/scheduler-status")
