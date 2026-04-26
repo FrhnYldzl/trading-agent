@@ -1,8 +1,9 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
+  "_note": "Bu railway.json SADECE claude/v5.8-abstract-bases branch'inde Dockerfile.crypto kullanır. main branch'inde aynı dosya hâlâ Dockerfile (equity) kullanır. Merge'de dikkat — railway.json'ı merge ederken hangi branch'in kazandığını bilinçli seç (equity için Dockerfile, crypto için Dockerfile.crypto).",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
+    "dockerfilePath": "Dockerfile.crypto"
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
