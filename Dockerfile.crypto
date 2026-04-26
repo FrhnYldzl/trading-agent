@@ -37,4 +37,5 @@ EXPOSE 8000
 WORKDIR /app/server
 
 # CRYPTO ENTRYPOINT — equity'nin main:app'inden farkli
-CMD sh -c "exec uvicorn crypto_preview_app:app --host 0.0.0.0 --port $PORT"
+# JSON array form (signal handling icin onerilen, Docker linter warning-free)
+CMD ["sh", "-c", "exec uvicorn crypto_preview_app:app --host 0.0.0.0 --port ${PORT:-8000}"]
