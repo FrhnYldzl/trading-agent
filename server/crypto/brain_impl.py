@@ -69,12 +69,41 @@ class CryptoBrain(BaseBrain):
 
     def __init__(self, model: str = None):
         self.model = model or DEFAULT_MODEL
-        api_key = _get("ANTHROPIC_API_KEY")
+        api_key, source = self._resolve_api_key()
+        self.api_key_source = source
         self.enabled = bool(api_key)
         if self.enabled:
             self.client = anthropic.Anthropic(api_key=api_key)
         else:
             self.client = None
+
+    @staticmethod
+    def _resolve_api_key():
+        """
+        Esnek API key çözümü — kullanıcı Railway'de hangi isimle koyduysa bul.
+
+        Sıra:
+          1. CRYPTO_ANTHROPIC_API_KEY (dedicated, önerilen)
+          2. ANTHROPIC_API_KEY (default convention)
+          3. .env ya da OS environ'da değeri 'sk-ant-' ile başlayan
+             HERHANGİ bir env var (Anthropic key formatı sabit)
+
+        Returns: (api_key, source_label)
+        """
+        # 1 + 2: bilinen isimler
+        for name in ("CRYPTO_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"):
+            v = _get(name)
+            if v:
+                return v, f"{name} (env)"
+
+        # 3: scan tüm env'leri sk-ant- prefix'ine göre
+        # OS env + .env dosyası
+        all_keys = {**os.environ, **_env_vals}
+        for k, v in all_keys.items():
+            if isinstance(v, str) and v.startswith("sk-ant-"):
+                return v, f"{k} (auto-detected, sk-ant- prefix)"
+
+        return None, "MISSING (hiçbir env var sk-ant- ile başlamıyor)"
 
     @property
     def asset_class(self) -> AssetClass:
