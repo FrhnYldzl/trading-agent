@@ -477,7 +477,14 @@ class CryptoAutoExecutor:
                 )
                 d["execution"] = exec_result
                 d["sizing"] = sizing
-                if exec_result.get("status") in ("filled", "pending", "dry_run"):
+                # V5.10.1 fix: Alpaca'nın "new", "accepted", "submitted",
+                # "pending_new", "partially_filled" gibi statüleri de "executed"
+                # sayar. Önceki kod sadece "filled" / "pending" / "dry_run"'a
+                # bakıyordu → real Alpaca order'ları pending listesine eklenmiyordu
+                # → max positions gate her sefer 0 görüyordu → 6 LONG açıldı.
+                exec_status = (exec_result.get("status") or "").lower()
+                rejected_statuses = ("error", "rejected", "canceled", "expired", "rejected_new")
+                if exec_status not in rejected_statuses:
                     result["decisions_executed"] += 1
                     self._last_order_per_symbol[ticker] = _now_utc()
                     # ⚡ V5.10-η.3: Pending listesine ekle ki sonraki kararlarda gate sayar
