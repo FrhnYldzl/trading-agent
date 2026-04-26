@@ -2576,6 +2576,17 @@ async function loadOverviewCharts() {
     const wrap = document.getElementById('overviewCharts');
     if (!wrap) return;
 
+    // V5.10.4 fix: Hero card'daki "Open Positions" sayacını güncelle
+    const positionsCount = (data.positions || []).length;
+    const pcEl = document.getElementById('positionCount');
+    if (pcEl) pcEl.textContent = positionsCount;
+    const pdEl = document.getElementById('positionDetail');
+    if (pdEl) {
+      pdEl.textContent = positionsCount > 0
+        ? `${positionsCount} active crypto position${positionsCount > 1 ? 's' : ''}`
+        : 'No active crypto positions';
+    }
+
     // Destroy existing charts
     Object.values(overviewCharts).forEach(c => { try { c.destroy(); } catch(e){} });
     overviewCharts = {};
