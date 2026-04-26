@@ -32,6 +32,7 @@ load_dotenv("../.env")  # repo kökündeki .env
 
 from crypto import (
     CRYPTO_CORE, CRYPTO_EXTENDED, STABLECOINS, CRYPTO_ASSET_GROUP,
+    get_asset_group,
     crypto_universe_stats, get_crypto_data,
     CryptoBroker, CryptoRegimeDetector, CryptoScheduler, CryptoRiskManager,
     CryptoBrain, CryptoAuditor, CryptoAutoExecutor,
@@ -301,7 +302,7 @@ def positions():
                 "market_value": float(p.market_value),
                 "unrealized_pl": float(p.unrealized_pl),
                 "unrealized_plpc": float(p.unrealized_plpc),
-                "asset_group": CRYPTO_ASSET_GROUP.get(p.symbol, "Unknown"),
+                "asset_group": get_asset_group(p.symbol),
             })
         return {"positions": crypto_positions, "count": len(crypto_positions)}
     except Exception as e:
@@ -565,7 +566,7 @@ def brain_decisions(fresh: bool = False):
                 "avg_entry_price": float(p.avg_entry_price),
                 "current_price": float(p.current_price) if p.current_price else None,
                 "unrealized_pl": float(p.unrealized_pl),
-                "asset_group": CRYPTO_ASSET_GROUP.get(p.symbol, "Unknown"),
+                "asset_group": get_asset_group(p.symbol),
             }
             for p in positions
             if p.asset_class and "crypto" in str(p.asset_class).lower()
@@ -659,8 +660,19 @@ _static_dir = Path(__file__).parent / "static" / "crypto"
 
 @app.get("/", response_class=HTMLResponse)
 def root():
-    """Bloomberg-grade BTC-themed crypto trading terminal."""
-    return FileResponse(_static_dir / "index.html")
+    """Bloomberg-grade BTC-themed crypto trading terminal.
+
+    Cache busting: HTML her zaman fresh çekilir (Cache-Control: no-store).
+    Bu sayede deploy sonrası browser eski JS'le takılı kalmaz.
+    """
+    return FileResponse(
+        _static_dir / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 # Static asset mounting (CSS/JS dosyaları lazım olursa)

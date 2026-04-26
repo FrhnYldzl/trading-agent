@@ -49,8 +49,26 @@ CRYPTO_ASSET_GROUP = {
 
 
 def get_asset_group(symbol: str) -> str:
-    """Sembolün asset group'unu dön. Bilinmeyen → 'Unknown'."""
-    return CRYPTO_ASSET_GROUP.get(symbol.upper(), "Unknown")
+    """
+    Sembolün asset group'unu dön. Hem 'BTC/USD' hem 'BTCUSD' formatları
+    için çalışır (Alpaca pozisyon endpoint'i slash'sız döner).
+    """
+    s = (symbol or "").upper()
+    # Direkt bul
+    if s in CRYPTO_ASSET_GROUP:
+        return CRYPTO_ASSET_GROUP[s]
+    # Slash yoksa, bilinen quote'lardan birinin başına slash ekleyip dene
+    for quote in ("USD", "USDT", "USDC"):
+        if s.endswith(quote) and "/" not in s:
+            with_slash = s[:-len(quote)] + "/" + quote
+            if with_slash in CRYPTO_ASSET_GROUP:
+                return CRYPTO_ASSET_GROUP[with_slash]
+    # Slash varsa kaldırıp dene
+    if "/" in s:
+        no_slash = s.replace("/", "")
+        if no_slash in CRYPTO_ASSET_GROUP:
+            return CRYPTO_ASSET_GROUP[no_slash]
+    return "Unknown"
 
 
 class CryptoRiskManager(BaseRiskManager):
