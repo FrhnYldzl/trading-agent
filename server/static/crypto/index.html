@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meridian Capital — Crypto Trading Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════════════
+     MERIDIAN CAPITAL — CRYPTO TERMINAL
+     Bitcoin-themed institutional dashboard
+     ═══════════════════════════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Core palette — deeper black for crypto feel */
+    --bg-primary:    #08090d;
+    --bg-secondary:  #0d0f14;
+    --bg-tertiary:   #14171f;
+    --bg-card:       #11141b;
+    --bg-elevated:   #181c26;
+    --bg-hover:      #1f2530;
+    --bg-input:      #0a0c12;
+
+    /* Borders */
+    --border:        #1e2330;
+    --border-light:  #2a3142;
+    --border-accent: #3a4356;
+
+    /* Text hierarchy */
+    --text-primary:   #f5f6f8;
+    --text-secondary: #94a0b3;
+    --text-tertiary:  #5e6b7e;
+    --text-muted:     #3e4759;
+
+    /* BITCOIN ORANGE — primary brand */
+    --btc:           #f7931a;
+    --btc-bright:    #ffaa3a;
+    --btc-dark:      #cc7a14;
+    --btc-dim:       rgba(247, 147, 26, 0.12);
+    --btc-border:    rgba(247, 147, 26, 0.35);
+    --btc-glow:      0 0 24px rgba(247, 147, 26, 0.3);
+
+    /* Trading colors */
+    --green:         #10b981;
+    --green-bright:  #34d399;
+    --green-dim:     rgba(16, 185, 129, 0.12);
+    --red:           #ef4444;
+    --red-bright:    #f87171;
+    --red-dim:       rgba(239, 68, 68, 0.12);
+    --blue:          #3b82f6;
+    --blue-dim:      rgba(59, 130, 246, 0.12);
+    --purple:        #8b5cf6;
+    --purple-dim:    rgba(139, 92, 246, 0.12);
+
+    /* Layout */
+    --sidebar-width: 240px;
+    --topbar-height: 52px;
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  html { font-size: 13px; }
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── SIDEBAR ────────────────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0; top: 0;
+    z-index: 200;
+  }
+  .sidebar-brand {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .brand-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--btc), var(--btc-dark));
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 18px;
+    color: #1a1208;
+    box-shadow: var(--btc-glow);
+  }
+  .brand-name {
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .brand-sub {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--btc);
+    font-weight: 700;
+  }
+
+  .sidebar-nav { flex: 1; padding: 14px 10px; overflow-y: auto; }
+  .nav-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--text-muted);
+    padding: 14px 12px 6px;
+    font-weight: 700;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: all 0.15s;
+    margin-bottom: 1px;
+  }
+  .nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .nav-item.active {
+    background: var(--btc-dim);
+    color: var(--btc-bright);
+    border-left: 2px solid var(--btc);
+    padding-left: 10px;
+  }
+  .nav-icon {
+    width: 16px; height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  .sidebar-footer {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--btc-bright);
+    font-weight: 600;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--btc);
+    box-shadow: 0 0 8px var(--btc);
+    animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ─── MAIN ──────────────────────────────────────────────── */
+  .main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    height: var(--topbar-height);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 18px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+  }
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px;
+    border-radius: var(--radius);
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+  }
+  .status-chip.bull { background: var(--green-dim); border-color: var(--green); color: var(--green-bright); }
+  .status-chip.bear { background: var(--red-dim); border-color: var(--red); color: var(--red-bright); }
+  .status-chip.neutral { background: var(--bg-tertiary); }
+  .status-chip.btc { background: var(--btc-dim); border-color: var(--btc-border); color: var(--btc-bright); }
+  .status-chip.warn { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .badge.dry { background: #fbbf24; color: #1a1208; }
+  .badge.paper { background: var(--blue); color: #fff; }
+  .badge.live { background: var(--red); color: #fff; }
+
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-light);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--bg-hover); border-color: var(--border-accent); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--btc), var(--btc-dark));
+    border-color: var(--btc-dark);
+    color: #1a1208;
+  }
+  .btn.primary:hover { box-shadow: var(--btc-glow); }
+
+  /* ─── HERO ──────────────────────────────────────────────── */
+  .hero {
+    padding: 24px 24px 0;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 14px;
+  }
+  .hero-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    transition: border-color 0.15s;
+  }
+  .hero-card:hover { border-color: var(--border-accent); }
+  .hero-card.featured {
+    background: linear-gradient(135deg, var(--bg-card), var(--btc-dim));
+    border-color: var(--btc-border);
+  }
+  .hero-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .hero-value {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .hero-value.large { font-size: 32px; }
+  .hero-meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .delta { font-weight: 600; }
+  .delta.up { color: var(--green-bright); }
+  .delta.down { color: var(--red-bright); }
+
+  /* ─── REGIME + GRID ─────────────────────────────────────── */
+  .grid-section { padding: 18px 24px; }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 800;
+    color: var(--text-secondary);
+  }
+  .section-title .accent { color: var(--btc); }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-title {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  /* Regime components */
+  .regime-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .regime-comp {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+  .regime-comp-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  .regime-comp-score {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .regime-comp-bar {
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .regime-comp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--btc), var(--btc-bright));
+    transition: width 0.5s ease;
+  }
+  .regime-comp-detail {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .reasoning-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--btc);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  /* Core 10 grid */
+  .coin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .coin-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .coin-card:hover {
+    border-color: var(--btc-border);
+    transform: translateY(-1px);
+  }
+  .coin-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .coin-symbol {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--btc-bright);
+    font-family: var(--font-mono);
+  }
+  .coin-trend-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .coin-trend-tag.up { background: var(--green-dim); color: var(--green-bright); }
+  .coin-trend-tag.down { background: var(--red-dim); color: var(--red-bright); }
+  .coin-trend-tag.flat { background: var(--bg-input); color: var(--text-tertiary); }
+  .coin-price {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .coin-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+  .coin-stats .stat-label { color: var(--text-muted); }
+
+  /* Asset groups */
+  .group-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-row:last-child { border: none; }
+  .group-name {
+    width: 90px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .group-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-input);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .group-bar-fill {
+    height: 100%;
+    background: var(--btc);
+    border-radius: 4px;
+  }
+  .group-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* Empty state */
+  .empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    border: 1px dashed var(--border-light);
+  }
+
+  /* Loading */
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-hover), var(--bg-tertiary));
+    background-size: 200% 100%;
+    animation: skeleton 1.4s infinite;
+    border-radius: var(--radius-sm);
+    color: transparent;
+  }
+  @keyframes skeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Footer */
+  .footer-meta {
+    padding: 16px 24px;
+    color: var(--text-muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-meta .accent { color: var(--btc); font-weight: 600; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ─── SIDEBAR ─── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">
+      <div class="brand-icon">₿</div>
+      <div>
+        <div class="brand-name">Meridian Capital</div>
+        <div class="brand-sub">CRYPTO TERMINAL</div>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Trading</div>
+    <div class="nav-item active"><span class="nav-icon">📊</span> Overview</div>
+    <div class="nav-item" onclick="document.getElementById('coinsSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">🟠</span> Core 10</div>
+    <div class="nav-item" onclick="document.getElementById('regimeSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">📈</span> Regime</div>
+    <div class="nav-item" onclick="document.getElementById('riskSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">🛡️</span> Risk</div>
+
+    <div class="nav-section">Portfolio</div>
+    <div class="nav-item" onclick="document.getElementById('posSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">💼</span> Positions</div>
+    <div class="nav-item" onclick="document.getElementById('orderSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">📝</span> Orders</div>
+
+    <div class="nav-section">Reference</div>
+    <div class="nav-item" onclick="window.open('/api/crypto/universe','_blank')"><span class="nav-icon">🌐</span> Universe (API)</div>
+    <div class="nav-item" onclick="window.open('/docs','_blank')"><span class="nav-icon">📚</span> Swagger</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="live-badge">
+      <span class="live-dot"></span>
+      <span id="liveStatus">Connecting…</span>
+    </div>
+    <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">
+      Updated <span id="lastUpdate">—</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ─── MAIN ─── -->
+<main class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-status">
+      <span class="status-chip" id="regimeChip">REGIME: <span id="regimeLabel">—</span></span>
+      <span class="status-chip btc">BTC: <span id="btcMini">—</span></span>
+      <span class="status-chip" id="scanChip">SCAN: <span id="scanModeLabel">—</span></span>
+      <span class="status-chip neutral">SYMBOLS: <span id="symbolCount">10</span></span>
+    </div>
+    <div class="topbar-actions">
+      <span class="badge dry" id="dryBadge">DRY-RUN</span>
+      <span class="badge paper" id="paperBadge">PAPER</span>
+      <button class="btn" onclick="loadAll()">↻ REFRESH</button>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-card featured">
+      <div class="hero-label">Bitcoin — Live</div>
+      <div class="hero-value large" id="btcPrice">—</div>
+      <div class="hero-meta">
+        <span class="delta" id="btcDelta">—</span>
+        <span>·</span>
+        <span>RSI <span id="btcRsi">—</span></span>
+        <span>·</span>
+        <span>ATR% <span id="btcAtr">—</span></span>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label">Portfolio Value</div>
+      <div class="hero-value" id="portfolioValue">—</div>
+      <div class="hero-meta">
+        <span>Alpaca <span id="paperOrLive">Paper</span></span>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label">Buying Power</div>
+      <div class="hero-value" id="buyingPower">—</div>
+      <div class="hero-meta">
+        <span>Cash <span id="cashAmount">—</span></span>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label">Open Positions</div>
+      <div class="hero-value" id="positionCount">0</div>
+      <div class="hero-meta">
+        <span id="positionDetail">No active crypto positions</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGIME -->
+  <section class="grid-section" id="regimeSection">
+    <div class="section-head">
+      <div class="section-title"><span class="accent">▸</span> CRYPTO REGIME — BTC BENCHMARKED</div>
+      <div style="font-size:11px; color:var(--text-tertiary); font-family:var(--font-mono);">
+        Score: <span id="quantScore" style="color:var(--btc-bright); font-weight:700;">—</span> /
+        Confidence: <span id="confidence" style="color:var(--text-secondary);">—</span>%
+      </div>
+    </div>
+    <div class="panel">
+      <div class="regime-grid" id="regimeComponents">
+        <!-- Filled by JS -->
+      </div>
+      <div class="reasoning-box" id="reasoning">Loading regime analysis…</div>
+    </div>
+  </section>
+
+  <!-- CORE 10 -->
+  <section class="grid-section" id="coinsSection">
+    <div class="section-head">
+      <div class="section-title"><span class="accent">▸</span> CORE 10 — BLUE-CHIP UNIVERSE</div>
+      <div style="font-size:11px; color:var(--text-tertiary);">
+        Live OHLCV · EMA9/21/50 · RSI14 · ATR14 · Auto-refresh 30s
+      </div>
+    </div>
+    <div class="coin-grid" id="coinGrid"></div>
+  </section>
+
+  <!-- RISK -->
+  <section class="grid-section" id="riskSection">
+    <div class="section-head">
+      <div class="section-title"><span class="accent">▸</span> RISK CONFIG — CRYPTO CALIBRATED</div>
+    </div>
+    <div class="grid-3">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Risk Parameters</div></div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">Max risk / işlem</span>
+            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="maxRisk">—</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">Max group exposure</span>
+            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="maxGroup">—</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">ATR multiplier</span>
+            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="atrMult">2.0×</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">Default stop %</span>
+            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="stopPct">4.0%</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Asset Group Coverage</div></div>
+        <div id="groupBars" style="display:flex; flex-direction:column; gap:0;"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Scheduler</div></div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">Mod</span>
+            <span style="font-family:var(--font-mono); font-weight:700;" id="schedMode">—</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">Interval</span>
+            <span style="font-family:var(--font-mono); font-weight:700;" id="schedInterval">—</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-tertiary); font-size:11.5px;">Aktif session</span>
+            <span style="font-family:var(--font-mono); font-weight:700; color:var(--green-bright);">24/7 ALWAYS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POSITIONS + ORDERS -->
+  <section class="grid-section">
+    <div class="grid-2">
+      <div id="posSection">
+        <div class="section-head">
+          <div class="section-title"><span class="accent">▸</span> OPEN POSITIONS</div>
+          <span style="font-size:11px; color:var(--text-tertiary);" id="posCount">0 active</span>
+        </div>
+        <div class="panel">
+          <div id="posList"><div class="empty">Henüz açık crypto pozisyonu yok.</div></div>
+        </div>
+      </div>
+      <div id="orderSection">
+        <div class="section-head">
+          <div class="section-title"><span class="accent">▸</span> PENDING ORDERS</div>
+          <span style="font-size:11px; color:var(--text-tertiary);" id="orderCount">0 pending</span>
+        </div>
+        <div class="panel">
+          <div id="orderList"><div class="empty">Bekleyen crypto emri yok.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <div class="footer-meta">
+    <div>
+      Trading Agent <span class="accent">V5.9-β</span> · Crypto Module · Standalone Preview
+    </div>
+    <div>
+      Read-only · Brain not yet wired · main system on V5.7 (untouched)
+    </div>
+  </div>
+</main>
+
+<script>
+const API = '/api/crypto';
+const fmt = {
+  usd: (v) => v == null ? '—' : '$' + Number(v).toLocaleString('en-US', {maximumFractionDigits: 2}),
+  small: (v) => {
+    if (v == null) return '—';
+    const n = Number(v);
+    if (n >= 1) return '$' + n.toLocaleString('en-US', {maximumFractionDigits: 4});
+    if (n >= 0.01) return '$' + n.toFixed(4);
+    return '$' + n.toFixed(8);
+  },
+  pct: (v, signed = false) => {
+    if (v == null) return '—';
+    const n = Number(v);
+    const s = signed && n >= 0 ? '+' : '';
+    return s + n.toFixed(2) + '%';
+  },
+  num: (v, d=2) => v == null ? '—' : Number(v).toFixed(d),
+};
+
+async function jget(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(path + ' → ' + r.status);
+  return r.json();
+}
+
+async function loadHealth() {
+  try {
+    const h = await jget(API + '/health');
+    document.getElementById('liveStatus').textContent = 'Live · ' + h.version;
+    document.getElementById('dryBadge').style.display = h.dry_run ? 'inline-block' : 'none';
+    document.getElementById('paperBadge').textContent = h.paper ? 'PAPER' : 'LIVE';
+    document.getElementById('paperBadge').className = 'badge ' + (h.paper ? 'paper' : 'live');
+    document.getElementById('paperOrLive').textContent = h.paper ? 'Paper' : 'Live';
+  } catch(e) {
+    document.getElementById('liveStatus').textContent = 'Disconnected';
+  }
+}
+
+async function loadAccount() {
+  try {
+    const a = await jget(API + '/account');
+    if (a.error) return;
+    document.getElementById('portfolioValue').textContent = fmt.usd(a.portfolio_value);
+    document.getElementById('buyingPower').textContent = fmt.usd(a.buying_power);
+    document.getElementById('cashAmount').textContent = fmt.usd(a.cash);
+  } catch(e){console.error(e);}
+}
+
+async function loadMarketData() {
+  try {
+    const md = await jget(API + '/market-data');
+    const grid = document.getElementById('coinGrid');
+    grid.innerHTML = '';
+    const symbols = ['BTC/USD','ETH/USD','SOL/USD','XRP/USD','DOGE/USD',
+                     'ADA/USD','AVAX/USD','LINK/USD','DOT/USD','LTC/USD'];
+    for (const sym of symbols) {
+      const d = md[sym];
+      if (!d || d.error) continue;
+      const trendCls = d.trend === 'uptrend' ? 'up' : d.trend === 'downtrend' ? 'down' : 'flat';
+      const trendLabel = d.trend === 'uptrend' ? '↑ UP' : d.trend === 'downtrend' ? '↓ DOWN' : '→ FLAT';
+      const deltaCls = d.change_pct >= 0 ? 'up' : 'down';
+      grid.innerHTML += `
+        <div class="coin-card">
+          <div class="coin-head">
+            <span class="coin-symbol">${sym}</span>
+            <span class="coin-trend-tag ${trendCls}">${trendLabel}</span>
+          </div>
+          <div class="coin-price">${fmt.small(d.price)}</div>
+          <div class="coin-stats">
+            <span class="delta ${deltaCls}">${fmt.pct(d.change_pct, true)}</span>
+            <span><span class="stat-label">RSI</span> ${fmt.num(d.rsi14, 1)}</span>
+            <span><span class="stat-label">ATR%</span> ${fmt.num(d.atr_pct, 2)}</span>
+          </div>
+        </div>`;
+    }
+    // BTC hero
+    const btc = md['BTC/USD'];
+    if (btc && !btc.error) {
+      document.getElementById('btcPrice').textContent = fmt.usd(btc.price);
+      const dEl = document.getElementById('btcDelta');
+      dEl.textContent = fmt.pct(btc.change_pct, true);
+      dEl.className = 'delta ' + (btc.change_pct >= 0 ? 'up' : 'down');
+      document.getElementById('btcRsi').textContent = fmt.num(btc.rsi14, 1);
+      document.getElementById('btcAtr').textContent = fmt.num(btc.atr_pct, 2);
+      document.getElementById('btcMini').textContent = fmt.usd(btc.price);
+    }
+    document.getElementById('symbolCount').textContent = (md._meta?.symbols_resolved || 10);
+  } catch(e){console.error(e);}
+}
+
+async function loadRegime() {
+  try {
+    const r = await jget(API + '/regime');
+    document.getElementById('regimeLabel').textContent = (r.regime || '—').toUpperCase();
+    const chip = document.getElementById('regimeChip');
+    chip.className = 'status-chip ' + (
+      r.regime?.includes('bull') ? 'bull' :
+      r.regime?.includes('bear') ? 'bear' : 'neutral'
+    );
+    document.getElementById('quantScore').textContent = r.quant_score;
+    document.getElementById('confidence').textContent = r.confidence;
+    document.getElementById('reasoning').textContent = r.reasoning || '—';
+
+    const comps = r.components || {};
+    const compEl = document.getElementById('regimeComponents');
+    compEl.innerHTML = '';
+    const compConfig = [
+      ['volatility', 'Volatility', (c) => `ATR ort. %${c.avg_atr_pct} · ${c.label}`],
+      ['trend', 'Trend', (c) => `Bullish %${c.bullish_pct} · BTC ${c.btc_trend}`],
+      ['momentum', 'Momentum', (c) => `RSI ${c.avg_rsi} · ${c.label}`],
+      ['breadth', 'Breadth', (c) => `${c.advancing}/${c.total} green · ${c.label}`],
+    ];
+    for (const [key, label, fn] of compConfig) {
+      const c = comps[key];
+      if (!c) continue;
+      compEl.innerHTML += `
+        <div class="regime-comp">
+          <div class="regime-comp-label">${label}</div>
+          <div class="regime-comp-score">${c.score}</div>
+          <div class="regime-comp-bar"><div class="regime-comp-bar-fill" style="width:${Math.min(100, c.score)}%"></div></div>
+          <div class="regime-comp-detail">${fn(c)}</div>
+        </div>`;
+    }
+  } catch(e){console.error(e);}
+}
+
+async function loadScheduler() {
+  try {
+    const s = await jget(API + '/scheduler');
+    document.getElementById('scanModeLabel').textContent = s.mode;
+    document.getElementById('schedMode').textContent = s.mode;
+    document.getElementById('schedInterval').textContent = s.interval_minutes + ' dk';
+  } catch(e){console.error(e);}
+}
+
+async function loadRisk() {
+  try {
+    const r = await jget(API + '/risk-config');
+    document.getElementById('maxRisk').textContent = (r.max_risk_pct * 100).toFixed(2) + '%';
+    document.getElementById('maxGroup').textContent = (r.max_group_pct * 100).toFixed(0) + '%';
+    document.getElementById('atrMult').textContent = r.default_atr_multiplier + '×';
+    document.getElementById('stopPct').textContent = (r.default_stop_pct * 100).toFixed(1) + '%';
+
+    // Group bars (universe stats per group)
+    const u = await jget(API + '/universe');
+    const groups = {};
+    for (const [sym, grp] of Object.entries(u.asset_groups)) {
+      groups[grp] = (groups[grp] || 0) + 1;
+    }
+    const groupEl = document.getElementById('groupBars');
+    groupEl.innerHTML = '';
+    const sorted = Object.entries(groups).sort((a,b) => b[1] - a[1]);
+    const max = Math.max(...sorted.map(([,c]) => c));
+    for (const [grp, count] of sorted) {
+      groupEl.innerHTML += `
+        <div class="group-row">
+          <span class="group-name">${grp}</span>
+          <div class="group-bar"><div class="group-bar-fill" style="width:${(count/max)*100}%"></div></div>
+          <span class="group-count">${count} sym</span>
+        </div>`;
+    }
+  } catch(e){console.error(e);}
+}
+
+async function loadPositions() {
+  try {
+    const p = await jget(API + '/positions');
+    document.getElementById('positionCount').textContent = p.count || 0;
+    document.getElementById('posCount').textContent = (p.count || 0) + ' active';
+    if (!p.count) {
+      document.getElementById('posList').innerHTML = '<div class="empty">Henüz açık crypto pozisyonu yok.</div>';
+      document.getElementById('positionDetail').textContent = 'No active crypto positions';
+    } else {
+      document.getElementById('posList').innerHTML = p.positions.map(pp => `
+        <div style="padding:8px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">
+          <span><strong>${pp.symbol}</strong> · ${pp.qty} · ${pp.asset_group}</span>
+          <span class="delta ${pp.unrealized_pl >= 0 ? 'up' : 'down'}">${fmt.usd(pp.unrealized_pl)}</span>
+        </div>`).join('');
+      document.getElementById('positionDetail').textContent = p.count + ' open positions';
+    }
+  } catch(e){console.error(e);}
+}
+
+async function loadOrders() {
+  try {
+    const o = await jget(API + '/orders');
+    const orders = o.orders || [];
+    document.getElementById('orderCount').textContent = orders.length + ' pending';
+    if (!orders.length) {
+      document.getElementById('orderList').innerHTML = '<div class="empty">Bekleyen crypto emri yok.</div>';
+    } else {
+      document.getElementById('orderList').innerHTML = orders.map(o => `
+        <div style="padding:8px 0; border-bottom:1px solid var(--border);">
+          <strong>${o.symbol}</strong> · ${o.side} · ${o.type} · ${o.status}
+        </div>`).join('');
+    }
+  } catch(e){console.error(e);}
+}
+
+async function loadAll() {
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+  await Promise.all([
+    loadHealth(), loadAccount(), loadMarketData(),
+    loadRegime(), loadScheduler(), loadRisk(),
+    loadPositions(), loadOrders(),
+  ]);
+}
+
+// Initial + auto-refresh
+loadAll();
+setInterval(loadAll, 30000);  // 30s
+</script>
+</body>
+</html>

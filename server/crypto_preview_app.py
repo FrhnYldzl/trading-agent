@@ -20,10 +20,12 @@ Endpoint'ler:
 """
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv("../.env")  # repo kökündeki .env
 
@@ -155,70 +157,16 @@ def risk_config():
 
 
 # ─────────────────────────────────────────────────────────────────
-# Root HTML — minimal, hızlı bakış
+# Static dashboard — Meridian Capital Crypto Terminal
 # ─────────────────────────────────────────────────────────────────
+
+_static_dir = Path(__file__).parent / "static" / "crypto"
 
 @app.get("/", response_class=HTMLResponse)
 def root():
-    html = """
-<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8">
-<title>Crypto Preview — Trading Agent V5.9-α</title>
-<style>
-  body { font-family: -apple-system, monospace; background: #0a0a0a; color: #e0e0e0;
-         padding: 24px; max-width: 980px; margin: 0 auto; }
-  h1 { color: #f7931a; border-bottom: 1px solid #333; padding-bottom: 8px; }
-  h2 { color: #4ade80; margin-top: 28px; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 3px;
-           font-size: 12px; margin-left: 8px; }
-  .dry { background: #f59e0b; color: #000; }
-  .paper { background: #3b82f6; color: #fff; }
-  ul { line-height: 1.8; }
-  a { color: #60a5fa; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  code { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; color: #f7931a; }
-  .warn { background: #7c2d12; padding: 12px; border-radius: 6px; margin: 16px 0; }
-</style>
-</head><body>
-<h1>🟠 Crypto Preview — Trading Agent V5.9-α</h1>
-<span class="badge dry">DRY-RUN</span>
-<span class="badge paper">PAPER</span>
+    """Bloomberg-grade BTC-themed crypto trading terminal."""
+    return FileResponse(_static_dir / "index.html")
 
-<div class="warn">
-⚠️ Bu standalone preview ana sistemden ayrıdır. Tüm crypto broker
-metotları <code>dry_run=True</code> ile init edilmiştir — gerçek
-emir gönderilmez. Ana equity preview (8001) ve Railway deploy
-etkilenmez.
-</div>
 
-<h2>Live API Endpoints</h2>
-<ul>
-  <li><a href="/api/crypto/health">/api/crypto/health</a> — server durumu</li>
-  <li><a href="/api/crypto/universe">/api/crypto/universe</a> — Core 10 + Extended 33 + asset groups</li>
-  <li><a href="/api/crypto/account">/api/crypto/account</a> — Alpaca hesap (cash, equity, buying power)</li>
-  <li><a href="/api/crypto/market-data">/api/crypto/market-data</a> — Core 10 canlı OHLCV + EMA/RSI/ATR</li>
-  <li><a href="/api/crypto/regime">/api/crypto/regime</a> — BTC-benchmarked rejim algılaması</li>
-  <li><a href="/api/crypto/positions">/api/crypto/positions</a> — açık crypto pozisyonları</li>
-  <li><a href="/api/crypto/orders">/api/crypto/orders</a> — bekleyen crypto emirleri</li>
-  <li><a href="/api/crypto/scheduler">/api/crypto/scheduler</a> — 24/7 mod + interval</li>
-  <li><a href="/api/crypto/risk-config">/api/crypto/risk-config</a> — kalibre risk parametreleri</li>
-</ul>
-
-<h2>Mimari</h2>
-<ul>
-  <li><code>crypto/universe.py</code> — Core 10 + Extended 33 (stablecoin'ler hariç)</li>
-  <li><code>crypto/data.py</code> — Alpaca <code>CryptoHistoricalDataClient</code> wrapper</li>
-  <li><code>crypto/broker_impl.py</code> — <code>BaseBroker</code> impl, <strong>dry_run zorunlu</strong></li>
-  <li><code>crypto/risk_impl.py</code> — <code>BaseRiskManager</code> impl, %1 max risk + asset group concentration</li>
-  <li><code>crypto/regime_impl.py</code> — <code>BaseRegimeDetector</code> impl, BTC benchmark</li>
-  <li><code>crypto/scheduler_impl.py</code> — <code>BaseScheduler</code> impl, 24/7 + weekend slowdown</li>
-</ul>
-
-<p style="color: #888; margin-top: 32px; font-size: 12px;">
-Brain (Claude AI prompt) ve auto-trading scheduler V5.9-β/γ'da eklenecek.
-Şu anda sistem <strong>read-only</strong> — sadece veri çekiyor, karar vermiyor.
-</p>
-</body></html>
-"""
-    return HTMLResponse(content=html)
+# Static asset mounting (CSS/JS dosyaları lazım olursa)
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
