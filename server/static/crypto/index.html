@@ -7,15 +7,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   /* ═══════════════════════════════════════════════════════════════
-     MERIDIAN CAPITAL — CRYPTO TERMINAL
-     Bitcoin-themed institutional dashboard
+     MERIDIAN CAPITAL — CRYPTO TERMINAL · V5.9-δ (SPA)
+     Bitcoin orange + dark navy · Multi-page navigation
      ═══════════════════════════════════════════════════════════════ */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    /* Core palette — deeper black for crypto feel */
     --bg-primary:    #08090d;
     --bg-secondary:  #0d0f14;
     --bg-tertiary:   #14171f;
@@ -23,27 +22,19 @@
     --bg-elevated:   #181c26;
     --bg-hover:      #1f2530;
     --bg-input:      #0a0c12;
-
-    /* Borders */
     --border:        #1e2330;
     --border-light:  #2a3142;
     --border-accent: #3a4356;
-
-    /* Text hierarchy */
     --text-primary:   #f5f6f8;
     --text-secondary: #94a0b3;
     --text-tertiary:  #5e6b7e;
     --text-muted:     #3e4759;
-
-    /* BITCOIN ORANGE — primary brand */
     --btc:           #f7931a;
     --btc-bright:    #ffaa3a;
     --btc-dark:      #cc7a14;
     --btc-dim:       rgba(247, 147, 26, 0.12);
     --btc-border:    rgba(247, 147, 26, 0.35);
     --btc-glow:      0 0 24px rgba(247, 147, 26, 0.3);
-
-    /* Trading colors */
     --green:         #10b981;
     --green-bright:  #34d399;
     --green-dim:     rgba(16, 185, 129, 0.12);
@@ -53,20 +44,12 @@
     --blue:          #3b82f6;
     --blue-dim:      rgba(59, 130, 246, 0.12);
     --purple:        #8b5cf6;
-    --purple-dim:    rgba(139, 92, 246, 0.12);
-
-    /* Layout */
-    --sidebar-width: 240px;
-    --topbar-height: 52px;
-    --radius-sm: 4px;
-    --radius: 6px;
-    --radius-lg: 8px;
-    --radius-xl: 12px;
-
+    --sidebar-width: 244px;
+    --topbar-height: 54px;
+    --radius-sm: 4px; --radius: 6px; --radius-lg: 8px; --radius-xl: 12px;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   }
-
   html { font-size: 13px; }
   body {
     background: var(--bg-primary);
@@ -78,7 +61,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ─── SIDEBAR ────────────────────────────────────────────── */
+  /* ─── SIDEBAR ──────────────────────────────────────────────────── */
   .sidebar {
     width: var(--sidebar-width);
     height: 100vh;
@@ -90,107 +73,63 @@
     left: 0; top: 0;
     z-index: 200;
   }
-  .sidebar-brand {
-    padding: 22px 20px 18px;
-    border-bottom: 1px solid var(--border);
-  }
-  .brand-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-  }
+  .sidebar-brand { padding: 22px 20px 18px; border-bottom: 1px solid var(--border); }
+  .brand-logo { display: flex; align-items: center; gap: 10px; }
   .brand-icon {
-    width: 34px; height: 34px;
+    width: 36px; height: 36px;
     background: linear-gradient(135deg, var(--btc), var(--btc-dark));
     border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    font-size: 18px;
-    color: #1a1208;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 20px; color: #1a1208;
     box-shadow: var(--btc-glow);
   }
-  .brand-name {
-    font-weight: 800;
-    font-size: 14px;
-    letter-spacing: -0.01em;
-    line-height: 1.1;
-  }
+  .brand-name { font-weight: 800; font-size: 14px; line-height: 1.1; }
   .brand-sub {
-    font-size: 9.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--btc);
-    font-weight: 700;
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.18em;
+    color: var(--btc); font-weight: 700; margin-top: 2px;
   }
-
   .sidebar-nav { flex: 1; padding: 14px 10px; overflow-y: auto; }
   .nav-section {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--text-muted);
-    padding: 14px 12px 6px;
-    font-weight: 700;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--text-muted); padding: 16px 12px 6px; font-weight: 700;
   }
   .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: var(--radius);
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 12.5px;
-    font-weight: 500;
-    transition: all 0.15s;
-    margin-bottom: 1px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: var(--radius);
+    color: var(--text-secondary); cursor: pointer;
+    font-size: 12.5px; font-weight: 500;
+    transition: all 0.15s; margin-bottom: 1px;
+    text-decoration: none;
+    user-select: none;
   }
-  .nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
   .nav-item.active {
     background: var(--btc-dim);
     color: var(--btc-bright);
-    border-left: 2px solid var(--btc);
-    padding-left: 10px;
+    box-shadow: inset 2px 0 0 var(--btc);
   }
   .nav-icon {
     width: 16px; height: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px;
   }
-
   .sidebar-footer {
     padding: 14px 18px;
     border-top: 1px solid var(--border);
     font-size: 11px;
   }
   .live-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--btc-bright);
-    font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--btc-bright); font-weight: 600;
   }
   .live-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--btc);
-    box-shadow: 0 0 8px var(--btc);
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--btc); box-shadow: 0 0 8px var(--btc);
     animation: pulse 1.6s infinite;
   }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  /* ─── MAIN ──────────────────────────────────────────────── */
+  /* ─── MAIN ─────────────────────────────────────────────────────── */
   .main {
     margin-left: var(--sidebar-width);
     flex: 1;
@@ -201,45 +140,30 @@
     height: var(--topbar-height);
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
+    display: flex; align-items: center;
     padding: 0 24px;
     gap: 18px;
     position: sticky;
-    top: 0;
-    z-index: 100;
+    top: 0; z-index: 100;
   }
-  .topbar-status {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex: 1;
-  }
+  .topbar-status { display: flex; align-items: center; gap: 12px; flex: 1; flex-wrap: wrap; }
   .status-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 11px;
-    border-radius: var(--radius);
-    font-size: 11px;
-    font-weight: 600;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px; border-radius: var(--radius);
+    font-size: 11px; font-weight: 600;
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    transition: all 0.15s;
   }
   .status-chip.bull { background: var(--green-dim); border-color: var(--green); color: var(--green-bright); }
   .status-chip.bear { background: var(--red-dim); border-color: var(--red); color: var(--red-bright); }
   .status-chip.neutral { background: var(--bg-tertiary); }
   .status-chip.btc { background: var(--btc-dim); border-color: var(--btc-border); color: var(--btc-bright); }
-  .status-chip.warn { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
 
   .badge {
     display: inline-block;
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    padding: 3px 9px; border-radius: 3px;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
   }
   .badge.dry { background: #fbbf24; color: #1a1208; }
   .badge.paper { background: var(--blue); color: #fff; }
@@ -247,31 +171,57 @@
 
   .topbar-actions { display: flex; gap: 10px; align-items: center; }
   .btn {
-    padding: 7px 14px;
-    border-radius: var(--radius);
+    padding: 7px 14px; border-radius: var(--radius);
     border: 1px solid var(--border-light);
     background: var(--bg-tertiary);
     color: var(--text-primary);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: var(--font-sans);
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: var(--font-sans);
     transition: all 0.15s;
   }
   .btn:hover { background: var(--bg-hover); border-color: var(--border-accent); }
+  .btn:focus { outline: 2px solid var(--btc); outline-offset: 1px; }
   .btn.primary {
     background: linear-gradient(135deg, var(--btc), var(--btc-dark));
-    border-color: var(--btc-dark);
-    color: #1a1208;
+    border-color: var(--btc-dark); color: #1a1208;
   }
   .btn.primary:hover { box-shadow: var(--btc-glow); }
+  .btn.sm { padding: 4px 10px; font-size: 11px; }
 
-  /* ─── HERO ──────────────────────────────────────────────── */
+  .account-select {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    font-size: 12px; font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .account-select:focus { outline: 2px solid var(--btc); outline-offset: 1px; }
+
+  /* ─── VIEW SYSTEM ──────────────────────────────────────────────── */
+  .view { display: none; padding: 22px 24px 32px; }
+  .view.active { display: block; }
+  .view-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 18px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .view-title {
+    font-size: 18px; font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .view-subtitle {
+    font-size: 11.5px; color: var(--text-tertiary);
+    font-weight: 500;
+  }
+
+  /* ─── HERO ─────────────────────────────────────────────────────── */
   .hero {
-    padding: 24px 24px 0;
     display: grid;
     grid-template-columns: 1.4fr 1fr 1fr 1fr;
-    gap: 14px;
+    gap: 14px; margin-bottom: 22px;
   }
   .hero-card {
     background: var(--bg-card);
@@ -286,84 +236,46 @@
     border-color: var(--btc-border);
   }
   .hero-label {
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--text-tertiary);
-    font-weight: 700;
-    margin-bottom: 8px;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-tertiary); font-weight: 700; margin-bottom: 8px;
   }
   .hero-value {
     font-family: var(--font-mono);
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    font-size: 26px; font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.1;
   }
   .hero-value.large { font-size: 32px; }
   .hero-meta {
     margin-top: 6px;
-    font-size: 11px;
-    color: var(--text-tertiary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    font-size: 11px; color: var(--text-tertiary);
+    display: flex; align-items: center; gap: 8px;
   }
   .delta { font-weight: 600; }
   .delta.up { color: var(--green-bright); }
   .delta.down { color: var(--red-bright); }
 
-  /* ─── REGIME + GRID ─────────────────────────────────────── */
-  .grid-section { padding: 18px 24px; }
-  .section-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  .section-title {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    font-weight: 800;
-    color: var(--text-secondary);
-  }
-  .section-title .accent { color: var(--btc); }
-
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  .grid-3 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 14px;
-  }
-
+  /* ─── PANELS ───────────────────────────────────────────────────── */
   .panel {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 16px;
+    padding: 16px 18px;
   }
   .panel-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; padding-bottom: 10px;
     border-bottom: 1px solid var(--border);
   }
   .panel-title {
-    font-size: 11.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-weight: 700;
-    color: var(--text-secondary);
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.14em;
+    font-weight: 700; color: var(--text-secondary);
   }
 
-  /* Regime components */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ─── REGIME COMPONENTS ────────────────────────────────────────── */
   .regime-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .regime-comp {
     background: var(--bg-tertiary);
@@ -372,48 +284,34 @@
     padding: 12px 14px;
   }
   .regime-comp-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--text-tertiary);
-    font-weight: 700;
-    margin-bottom: 5px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-tertiary); font-weight: 700; margin-bottom: 5px;
   }
   .regime-comp-score {
     font-family: var(--font-mono);
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 4px;
+    font-size: 18px; font-weight: 700; margin-bottom: 4px;
   }
   .regime-comp-bar {
-    height: 4px;
-    background: var(--bg-input);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 6px;
+    height: 4px; background: var(--bg-input);
+    border-radius: 2px; overflow: hidden; margin-bottom: 6px;
   }
   .regime-comp-bar-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--btc), var(--btc-bright));
     transition: width 0.5s ease;
   }
-  .regime-comp-detail {
-    font-size: 11px;
-    color: var(--text-tertiary);
-  }
-
+  .regime-comp-detail { font-size: 11px; color: var(--text-tertiary); }
   .reasoning-box {
     margin-top: 14px;
     padding: 12px 14px;
     background: var(--bg-tertiary);
     border-left: 3px solid var(--btc);
     border-radius: 0 var(--radius) var(--radius) 0;
-    font-size: 12px;
-    line-height: 1.6;
+    font-size: 12px; line-height: 1.6;
     color: var(--text-secondary);
   }
 
-  /* Core 10 grid */
+  /* ─── COIN CARDS (Overview Core 10) ───────────────────────────── */
   .coin-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -430,123 +328,264 @@
   .coin-card:hover {
     border-color: var(--btc-border);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(247, 147, 26, 0.08);
   }
   .coin-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    display: flex; justify-content: space-between; align-items: baseline;
     margin-bottom: 8px;
   }
   .coin-symbol {
-    font-weight: 700;
-    font-size: 13px;
-    color: var(--btc-bright);
-    font-family: var(--font-mono);
+    font-weight: 700; font-size: 13px;
+    color: var(--btc-bright); font-family: var(--font-mono);
   }
   .coin-trend-tag {
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    font-size: 9px; padding: 2px 6px; border-radius: 3px;
+    text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;
   }
   .coin-trend-tag.up { background: var(--green-dim); color: var(--green-bright); }
   .coin-trend-tag.down { background: var(--red-dim); color: var(--red-bright); }
   .coin-trend-tag.flat { background: var(--bg-input); color: var(--text-tertiary); }
   .coin-price {
     font-family: var(--font-mono);
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 4px;
+    font-size: 18px; font-weight: 700; margin-bottom: 4px;
   }
   .coin-stats {
-    display: flex;
-    gap: 12px;
-    font-size: 10.5px;
-    color: var(--text-tertiary);
+    display: flex; gap: 12px;
+    font-size: 10.5px; color: var(--text-tertiary);
     font-family: var(--font-mono);
   }
   .coin-stats .stat-label { color: var(--text-muted); }
 
-  /* Asset groups */
-  .group-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
+  /* ─── MARKETS TABLE ─────────────────────────────────────────── */
+  .markets-toolbar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 14px; flex-wrap: wrap;
   }
-  .group-row:last-child { border: none; }
-  .group-name {
-    width: 90px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .group-bar {
-    flex: 1;
-    height: 8px;
+  .toolbar-input {
     background: var(--bg-input);
-    border-radius: 4px;
-    overflow: hidden;
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    padding: 7px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-family: var(--font-sans);
+    min-width: 180px;
   }
-  .group-bar-fill {
-    height: 100%;
-    background: var(--btc);
-    border-radius: 4px;
+  .toolbar-input:focus {
+    outline: 2px solid var(--btc);
+    outline-offset: 1px;
+    border-color: var(--btc);
   }
-  .group-count {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-tertiary);
-    min-width: 40px;
-    text-align: right;
+  .filter-pill {
+    padding: 5px 11px;
+    border-radius: 20px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+  }
+  .filter-pill:hover { background: var(--bg-hover); }
+  .filter-pill.active {
+    background: var(--btc-dim);
+    border-color: var(--btc);
+    color: var(--btc-bright);
   }
 
-  /* Empty state */
-  .empty {
-    padding: 24px;
-    text-align: center;
-    color: var(--text-tertiary);
+  table.markets {
+    width: 100%; border-collapse: collapse;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  table.markets th {
+    background: var(--bg-tertiary);
+    padding: 11px 14px;
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    text-align: left;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  table.markets th:hover { color: var(--btc); }
+  table.markets th.sorted-asc::after { content: " ↑"; color: var(--btc); }
+  table.markets th.sorted-desc::after { content: " ↓"; color: var(--btc); }
+  table.markets td {
+    padding: 10px 14px;
     font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+  }
+  table.markets tr:last-child td { border-bottom: none; }
+  table.markets tr:hover td { background: var(--bg-hover); }
+  table.markets td.symbol {
+    font-weight: 700; color: var(--btc-bright);
+  }
+  table.markets td.group {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-sans);
+  }
+
+  /* ─── CHARTS ──────────────────────────────────────────────────── */
+  .chart-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+  }
+  .chart-controls {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .chart-symbol-select {
+    background: var(--bg-input);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+  .chart-canvas-wrap {
+    position: relative; width: 100%;
+    height: 480px;
+  }
+  .chart-canvas-wrap.compact { height: 200px; }
+
+  /* ─── CHARTS PAGE LAYOUT ─────────────────────────────────────── */
+  .charts-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    .charts-layout { grid-template-columns: 1fr; }
+  }
+
+  .symbol-panel { display: flex; flex-direction: column; }
+
+  .sym-price {
+    font-family: var(--font-mono);
+    font-size: 28px; font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.1;
+    margin-top: 4px;
+  }
+  .sym-change {
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 13px; font-weight: 600;
+  }
+  .sym-change.up { color: var(--green-bright); }
+  .sym-change.down { color: var(--red-bright); }
+
+  .micro-stat {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+  }
+  .micro-label {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-muted); font-weight: 700; margin-bottom: 4px;
+  }
+  .micro-value {
+    font-family: var(--font-mono);
+    font-size: 14px; font-weight: 700;
+    color: var(--text-primary);
+  }
+  .micro-value.small { font-size: 11px; color: var(--btc-bright); }
+
+  .pos-row {
+    display: flex; justify-content: space-between;
+    padding: 7px 0; font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pos-row:last-child { border: none; }
+  .pos-row .k { color: var(--text-tertiary); font-size: 11px; }
+  .pos-row .v {
+    font-family: var(--font-mono); font-weight: 700;
+    color: var(--text-primary);
+  }
+  .pos-row .v.big { font-size: 14px; }
+  .status-chip.has-pos {
+    background: var(--green-dim); border-color: var(--green); color: var(--green-bright);
+  }
+
+  /* ─── EMPTY ────────────────────────────────────────────────────── */
+  .empty {
+    padding: 24px; text-align: center;
+    color: var(--text-tertiary); font-size: 12px;
     background: var(--bg-tertiary);
     border-radius: var(--radius);
     border: 1px dashed var(--border-light);
   }
 
-  /* Loading */
-  .skeleton {
-    background: linear-gradient(90deg, var(--bg-tertiary), var(--bg-hover), var(--bg-tertiary));
-    background-size: 200% 100%;
-    animation: skeleton 1.4s infinite;
-    border-radius: var(--radius-sm);
-    color: transparent;
+  /* ─── RISK SECTIONS ─────────────────────────────────────────── */
+  .group-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
   }
-  @keyframes skeleton {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+  .group-row:last-child { border: none; }
+  .group-name {
+    width: 100px; font-size: 11px; font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .group-bar {
+    flex: 1; height: 8px;
+    background: var(--bg-input);
+    border-radius: 4px; overflow: hidden;
+  }
+  .group-bar-fill {
+    height: 100%; background: var(--btc); border-radius: 4px;
+  }
+  .group-count {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--text-tertiary);
+    min-width: 50px; text-align: right;
   }
 
-  /* Footer */
+  .kv-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+  .kv-row .k { color: var(--text-tertiary); font-size: 11.5px; }
+  .kv-row .v { font-family: var(--font-mono); font-weight: 700; color: var(--btc-bright); }
+  .kv-row .v.ok { color: var(--green-bright); }
+  .kv-row .v.warn { color: #fbbf24; }
+  .kv-row .v.bad { color: var(--red-bright); }
+
+  /* ─── FOOTER ────────────────────────────────────────────────── */
   .footer-meta {
     padding: 16px 24px;
-    color: var(--text-muted);
-    font-size: 11px;
+    color: var(--text-muted); font-size: 11px;
     border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between;
   }
   .footer-meta .accent { color: var(--btc); font-weight: 600; }
 
-  /* Scrollbar */
+  /* ─── SCROLLBAR ─────────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: var(--bg-primary); }
   ::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  @media (max-width: 1000px) {
+    .hero, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -564,25 +603,26 @@
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Trading</div>
-    <div class="nav-item active"><span class="nav-icon">📊</span> Overview</div>
-    <div class="nav-item" onclick="document.getElementById('coinsSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">🟠</span> Core 10</div>
-    <div class="nav-item" onclick="document.getElementById('regimeSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">📈</span> Regime</div>
-    <div class="nav-item" onclick="document.getElementById('riskSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">🛡️</span> Risk</div>
+    <a class="nav-item" data-route="overview" href="#/overview"><span class="nav-icon">📊</span> Overview</a>
+    <a class="nav-item" data-route="markets" href="#/markets"><span class="nav-icon">🌐</span> Markets</a>
+    <a class="nav-item" data-route="charts" href="#/charts"><span class="nav-icon">📈</span> Charts</a>
+    <a class="nav-item" data-route="regime" href="#/regime"><span class="nav-icon">🧭</span> Regime</a>
 
     <div class="nav-section">Portfolio</div>
-    <div class="nav-item" onclick="document.getElementById('posSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">💼</span> Positions</div>
-    <div class="nav-item" onclick="document.getElementById('orderSection').scrollIntoView({behavior:'smooth'})"><span class="nav-icon">📝</span> Orders</div>
+    <a class="nav-item" data-route="positions" href="#/positions"><span class="nav-icon">💼</span> Positions</a>
+    <a class="nav-item" data-route="orders" href="#/orders"><span class="nav-icon">📝</span> Orders</a>
+    <a class="nav-item" data-route="risk" href="#/risk"><span class="nav-icon">🛡️</span> Risk</a>
 
-    <div class="nav-section">Reference</div>
-    <div class="nav-item" onclick="window.open('/api/crypto/universe','_blank')"><span class="nav-icon">🌐</span> Universe (API)</div>
-    <div class="nav-item" onclick="window.open('/docs','_blank')"><span class="nav-icon">📚</span> Swagger</div>
+    <div class="nav-section">Account</div>
+    <a class="nav-item" data-route="account" href="#/account"><span class="nav-icon">👤</span> Account</a>
+    <a class="nav-item" data-route="settings" href="#/settings"><span class="nav-icon">⚙️</span> Settings</a>
   </nav>
   <div class="sidebar-footer">
     <div class="live-badge">
       <span class="live-dot"></span>
       <span id="liveStatus">Connecting…</span>
     </div>
-    <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">
+    <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
       Updated <span id="lastUpdate">—</span>
     </div>
   </div>
@@ -597,149 +637,372 @@
       <span class="status-chip" id="regimeChip">REGIME: <span id="regimeLabel">—</span></span>
       <span class="status-chip btc">BTC: <span id="btcMini">—</span></span>
       <span class="status-chip" id="scanChip">SCAN: <span id="scanModeLabel">—</span></span>
-      <span class="status-chip neutral">SYMBOLS: <span id="symbolCount">10</span></span>
     </div>
     <div class="topbar-actions">
+      <select class="account-select" id="accountSelect">
+        <option value="default">Ferhan Paper #1</option>
+        <option value="add" disabled>+ Add account (V5.9-ε)</option>
+      </select>
       <span class="badge dry" id="dryBadge">DRY-RUN</span>
       <span class="badge paper" id="paperBadge">PAPER</span>
-      <button class="btn" onclick="loadAll()">↻ REFRESH</button>
+      <button class="btn" onclick="loadCurrentView()">↻ REFRESH</button>
     </div>
   </div>
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-card featured">
-      <div class="hero-label">Bitcoin — Live</div>
-      <div class="hero-value large" id="btcPrice">—</div>
-      <div class="hero-meta">
-        <span class="delta" id="btcDelta">—</span>
-        <span>·</span>
-        <span>RSI <span id="btcRsi">—</span></span>
-        <span>·</span>
-        <span>ATR% <span id="btcAtr">—</span></span>
+  <!-- ============================================================ -->
+  <!-- OVERVIEW                                                     -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-overview" data-view="overview">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Overview</div>
+        <div class="view-subtitle">Live market summary · BTC benchmark · Auto-refresh 30s</div>
       </div>
     </div>
-    <div class="hero-card">
-      <div class="hero-label">Portfolio Value</div>
-      <div class="hero-value" id="portfolioValue">—</div>
-      <div class="hero-meta">
-        <span>Alpaca <span id="paperOrLive">Paper</span></span>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-card featured">
+        <div class="hero-label">Bitcoin — Live</div>
+        <div class="hero-value large" id="btcPrice">—</div>
+        <div class="hero-meta">
+          <span class="delta" id="btcDelta">—</span>
+          <span>·</span>
+          <span>RSI <span id="btcRsi">—</span></span>
+          <span>·</span>
+          <span>ATR% <span id="btcAtr">—</span></span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-label">Portfolio Value</div>
+        <div class="hero-value" id="portfolioValue">—</div>
+        <div class="hero-meta">
+          <span>Alpaca <span id="paperOrLive">Paper</span></span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-label">Buying Power</div>
+        <div class="hero-value" id="buyingPower">—</div>
+        <div class="hero-meta">
+          <span>Cash <span id="cashAmount">—</span></span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-label">Open Positions</div>
+        <div class="hero-value" id="positionCount">0</div>
+        <div class="hero-meta">
+          <span id="positionDetail">No active crypto positions</span>
+        </div>
       </div>
     </div>
-    <div class="hero-card">
-      <div class="hero-label">Buying Power</div>
-      <div class="hero-value" id="buyingPower">—</div>
-      <div class="hero-meta">
-        <span>Cash <span id="cashAmount">—</span></span>
+
+    <!-- BTC mini chart -->
+    <div class="chart-panel" style="margin-bottom: 22px;">
+      <div class="panel-head">
+        <div class="panel-title">BTC/USD — 30 Day Trend</div>
+        <span style="font-size: 11px; color: var(--text-tertiary);">
+          Daily candles · <a href="#/charts" style="color: var(--btc);">Full chart →</a>
+        </span>
+      </div>
+      <div class="chart-canvas-wrap compact">
+        <canvas id="btcSparkChart"></canvas>
       </div>
     </div>
-    <div class="hero-card">
-      <div class="hero-label">Open Positions</div>
-      <div class="hero-value" id="positionCount">0</div>
-      <div class="hero-meta">
-        <span id="positionDetail">No active crypto positions</span>
+
+    <!-- Core 10 grid -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Core 10 — Blue-Chip Universe</div>
+        <a href="#/markets" style="font-size: 11px; color: var(--btc); text-decoration: none;">
+          View all 33 →
+        </a>
       </div>
+      <div class="coin-grid" id="coinGrid"></div>
     </div>
   </section>
 
-  <!-- REGIME -->
-  <section class="grid-section" id="regimeSection">
-    <div class="section-head">
-      <div class="section-title"><span class="accent">▸</span> CRYPTO REGIME — BTC BENCHMARKED</div>
-      <div style="font-size:11px; color:var(--text-tertiary); font-family:var(--font-mono);">
-        Score: <span id="quantScore" style="color:var(--btc-bright); font-weight:700;">—</span> /
-        Confidence: <span id="confidence" style="color:var(--text-secondary);">—</span>%
+  <!-- ============================================================ -->
+  <!-- MARKETS                                                      -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-markets" data-view="markets">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Markets</div>
+        <div class="view-subtitle">Tüm tradable USD pair'ler · Stablecoin'ler hariç · Sıralanabilir</div>
+      </div>
+      <div style="font-size: 11px; color: var(--text-tertiary);" id="marketsCount">— symbols</div>
+    </div>
+
+    <div class="markets-toolbar">
+      <input class="toolbar-input" id="marketsSearch" placeholder="Sembol ara (BTC, ETH, SOL...)" />
+      <span class="filter-pill active" data-momentum="0">All</span>
+      <span class="filter-pill" data-momentum="1">|change| &gt; 1%</span>
+      <span class="filter-pill" data-momentum="2">|change| &gt; 2%</span>
+      <span class="filter-pill" data-momentum="3">|change| &gt; 3%</span>
+      <span class="filter-pill" data-group="">All groups</span>
+      <span class="filter-pill" data-group="L1">L1</span>
+      <span class="filter-pill" data-group="DeFi">DeFi</span>
+      <span class="filter-pill" data-group="Meme">Meme</span>
+      <span class="filter-pill" data-group="Infra">Infra</span>
+    </div>
+
+    <table class="markets" id="marketsTable">
+      <thead>
+        <tr>
+          <th data-sort="symbol">Symbol</th>
+          <th data-sort="group">Group</th>
+          <th data-sort="price">Price</th>
+          <th data-sort="change_pct">Change %</th>
+          <th data-sort="rsi14">RSI</th>
+          <th data-sort="atr_pct">ATR %</th>
+          <th data-sort="volume_ratio">Vol Ratio</th>
+          <th data-sort="momentum_score">Momentum</th>
+          <th data-sort="trend">Trend</th>
+        </tr>
+      </thead>
+      <tbody id="marketsBody"></tbody>
+    </table>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- CHARTS                                                       -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-charts" data-view="charts">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Charts &amp; Position</div>
+        <div class="view-subtitle">Live chart + sembol pozisyonu + canlı metrikler — tek panelde</div>
       </div>
     </div>
-    <div class="panel">
-      <div class="regime-grid" id="regimeComponents">
-        <!-- Filled by JS -->
+
+    <!-- Chart + Position split layout -->
+    <div class="charts-layout">
+      <!-- LEFT: Chart -->
+      <div class="chart-panel">
+        <div class="chart-controls">
+          <select class="chart-symbol-select" id="chartSymbol"></select>
+          <span class="filter-pill active" data-tf="1Hour" data-days="2">1H</span>
+          <span class="filter-pill" data-tf="4Hour" data-days="7">4H</span>
+          <span class="filter-pill" data-tf="1Day" data-days="30">1D</span>
+          <span class="filter-pill" data-tf="1Day" data-days="90">3M</span>
+          <span class="filter-pill" data-tf="1Week" data-days="365">1Y</span>
+          <span style="margin-left: auto; font-family: var(--font-mono); color: var(--text-tertiary); font-size: 11px;" id="chartMeta">—</span>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="mainChart"></canvas>
+        </div>
       </div>
+
+      <!-- RIGHT: Symbol summary + Position -->
+      <aside class="symbol-panel">
+        <!-- Live metrics -->
+        <div class="panel" style="margin-bottom: 14px;">
+          <div class="panel-head">
+            <div class="panel-title">Live Metrics</div>
+            <span class="coin-trend-tag flat" id="symTrendTag">→ FLAT</span>
+          </div>
+          <div class="sym-price" id="symPrice">—</div>
+          <div class="sym-change" id="symChange">—</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
+            <div class="micro-stat">
+              <div class="micro-label">RSI 14</div>
+              <div class="micro-value" id="symRsi">—</div>
+            </div>
+            <div class="micro-stat">
+              <div class="micro-label">ATR %</div>
+              <div class="micro-value" id="symAtr">—</div>
+            </div>
+            <div class="micro-stat">
+              <div class="micro-label">Momentum</div>
+              <div class="micro-value" id="symMomentum">—</div>
+            </div>
+            <div class="micro-stat">
+              <div class="micro-label">Vol Ratio</div>
+              <div class="micro-value" id="symVolRatio">—</div>
+            </div>
+            <div class="micro-stat">
+              <div class="micro-label">EMA 9</div>
+              <div class="micro-value small" id="symEma9">—</div>
+            </div>
+            <div class="micro-stat">
+              <div class="micro-label">EMA 50</div>
+              <div class="micro-value small" id="symEma50">—</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11px;">
+            <span style="color: var(--text-tertiary);">Asset Group</span>
+            <span style="color: var(--btc-bright); font-weight: 700; font-family: var(--font-mono);" id="symGroup">—</span>
+          </div>
+        </div>
+
+        <!-- Position -->
+        <div class="panel" id="symPositionPanel">
+          <div class="panel-head">
+            <div class="panel-title">Your Position</div>
+            <span class="status-chip" id="posStatusChip" style="font-size: 10px;">NO POSITION</span>
+          </div>
+          <div id="symPositionContent">
+            <div class="empty" style="padding: 16px; font-size: 11.5px;">
+              Bu sembolde henüz açık pozisyonun yok.<br/>
+              <span style="color: var(--text-muted); font-size: 10.5px;">
+                V5.10'da manuel emir butonu eklenecek (paper, dry-run kapatılarak).
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- REGIME                                                       -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-regime" data-view="regime">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Regime Detection</div>
+        <div class="view-subtitle">BTC-benchmarked · 4 components: Volatility · Trend · Momentum · Breadth</div>
+      </div>
+      <div style="font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono);">
+        Score: <span id="quantScore" style="color: var(--btc-bright); font-weight: 700;">—</span> ·
+        Confidence: <span id="confidence" style="color: var(--text-secondary);">—</span>%
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="regime-grid" id="regimeComponents"></div>
       <div class="reasoning-box" id="reasoning">Loading regime analysis…</div>
     </div>
   </section>
 
-  <!-- CORE 10 -->
-  <section class="grid-section" id="coinsSection">
-    <div class="section-head">
-      <div class="section-title"><span class="accent">▸</span> CORE 10 — BLUE-CHIP UNIVERSE</div>
-      <div style="font-size:11px; color:var(--text-tertiary);">
-        Live OHLCV · EMA9/21/50 · RSI14 · ATR14 · Auto-refresh 30s
+  <!-- ============================================================ -->
+  <!-- POSITIONS                                                    -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-positions" data-view="positions">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Open Positions</div>
+        <div class="view-subtitle">Crypto holdings only · Asset group classification</div>
       </div>
+      <div style="font-size: 11px; color: var(--text-tertiary);" id="posCount">0 active</div>
     </div>
-    <div class="coin-grid" id="coinGrid"></div>
+    <div class="panel">
+      <div id="posList"><div class="empty">Henüz açık crypto pozisyonu yok.</div></div>
+    </div>
   </section>
 
-  <!-- RISK -->
-  <section class="grid-section" id="riskSection">
-    <div class="section-head">
-      <div class="section-title"><span class="accent">▸</span> RISK CONFIG — CRYPTO CALIBRATED</div>
+  <!-- ============================================================ -->
+  <!-- ORDERS                                                       -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-orders" data-view="orders">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Pending Orders</div>
+        <div class="view-subtitle">Open crypto orders awaiting fill or cancellation</div>
+      </div>
+      <div style="font-size: 11px; color: var(--text-tertiary);" id="orderCount">0 pending</div>
     </div>
+    <div class="panel">
+      <div id="orderList"><div class="empty">Bekleyen crypto emri yok.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- RISK                                                         -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-risk" data-view="risk">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Risk Configuration</div>
+        <div class="view-subtitle">Crypto-calibrated parameters · Asset group exposure · 24/7 scheduler</div>
+      </div>
+    </div>
+
     <div class="grid-3">
       <div class="panel">
         <div class="panel-head"><div class="panel-title">Risk Parameters</div></div>
-        <div style="display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">Max risk / işlem</span>
-            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="maxRisk">—</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">Max group exposure</span>
-            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="maxGroup">—</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">ATR multiplier</span>
-            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="atrMult">2.0×</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">Default stop %</span>
-            <span style="font-family:var(--font-mono); font-weight:700; color:var(--btc-bright);" id="stopPct">4.0%</span>
-          </div>
-        </div>
+        <div class="kv-row"><span class="k">Max risk / işlem</span><span class="v" id="maxRisk">—</span></div>
+        <div class="kv-row"><span class="k">Max group exposure</span><span class="v" id="maxGroup">—</span></div>
+        <div class="kv-row"><span class="k">ATR multiplier</span><span class="v" id="atrMult">2.0×</span></div>
+        <div class="kv-row"><span class="k">Default stop %</span><span class="v" id="stopPct">4.0%</span></div>
       </div>
       <div class="panel">
         <div class="panel-head"><div class="panel-title">Asset Group Coverage</div></div>
-        <div id="groupBars" style="display:flex; flex-direction:column; gap:0;"></div>
+        <div id="groupBars" style="display: flex; flex-direction: column; gap: 0;"></div>
       </div>
       <div class="panel">
         <div class="panel-head"><div class="panel-title">Scheduler</div></div>
-        <div style="display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">Mod</span>
-            <span style="font-family:var(--font-mono); font-weight:700;" id="schedMode">—</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">Interval</span>
-            <span style="font-family:var(--font-mono); font-weight:700;" id="schedInterval">—</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-tertiary); font-size:11.5px;">Aktif session</span>
-            <span style="font-family:var(--font-mono); font-weight:700; color:var(--green-bright);">24/7 ALWAYS</span>
-          </div>
-        </div>
+        <div class="kv-row"><span class="k">Mod</span><span class="v" id="schedMode">—</span></div>
+        <div class="kv-row"><span class="k">Interval</span><span class="v" id="schedInterval">—</span></div>
+        <div class="kv-row"><span class="k">Aktif session</span><span class="v ok">24/7 ALWAYS</span></div>
+        <div class="kv-row"><span class="k">Asset class</span><span class="v">CRYPTO</span></div>
       </div>
     </div>
   </section>
 
-  <!-- POSITIONS + ORDERS -->
-  <section class="grid-section">
+  <!-- ============================================================ -->
+  <!-- ACCOUNT                                                      -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-account" data-view="account">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Account Details</div>
+        <div class="view-subtitle">Alpaca paper trading · Crypto enabled</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div id="accountKvs"></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SETTINGS                                                     -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-settings" data-view="settings">
+    <div class="view-header">
+      <div>
+        <div class="view-title">Settings</div>
+        <div class="view-subtitle">Multi-account, brain config, scheduler tuning</div>
+      </div>
+    </div>
     <div class="grid-2">
-      <div id="posSection">
-        <div class="section-head">
-          <div class="section-title"><span class="accent">▸</span> OPEN POSITIONS</div>
-          <span style="font-size:11px; color:var(--text-tertiary);" id="posCount">0 active</span>
-        </div>
-        <div class="panel">
-          <div id="posList"><div class="empty">Henüz açık crypto pozisyonu yok.</div></div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Multi-Account (V5.9-ε)</div></div>
+        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+          Bir sonraki sürümde <code style="color: var(--btc); background: var(--bg-input); padding: 1px 6px; border-radius: 3px;">.env</code>'e
+          <code style="color: var(--btc); background: var(--bg-input); padding: 1px 6px; border-radius: 3px;">ACCOUNT_X_API_KEY</code>
+          ekleyerek farklı paper hesaplarını yan yana izleyebileceksin. Topbar dropdown'undan geçiş yapılır.
+        </p>
+        <div style="margin-top: 12px;">
+          <span class="badge paper">Active: Default</span>
         </div>
       </div>
-      <div id="orderSection">
-        <div class="section-head">
-          <div class="section-title"><span class="accent">▸</span> PENDING ORDERS</div>
-          <span style="font-size:11px; color:var(--text-tertiary);" id="orderCount">0 pending</span>
-        </div>
-        <div class="panel">
-          <div id="orderList"><div class="empty">Bekleyen crypto emri yok.</div></div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Brain (V5.9-ε)</div></div>
+        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+          Claude AI brain crypto için prompt'u sıradaki sürümde eklenecek.
+          Şimdilik sistem <strong>read-only</strong> — veri toplar, regime hesaplar,
+          ama karar/emir vermez.
+        </p>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Real Paper Trades (V5.10)</div></div>
+        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+          Şu an <code style="color: var(--btc); background: var(--bg-input); padding: 1px 6px; border-radius: 3px;">dry_run=True</code>.
+          V5.10'da güvenli emir gönderme + manuel onay diyaloğu + günlük limit + cooldown gelecek.
+          Live'a hiç geçmeden önce paper'da yeterince test edilecek.
+        </p>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Universe</div></div>
+        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+          Şu an Core 10 + Extended 33. Liste değişiklikleri için
+          <code style="color: var(--btc); background: var(--bg-input); padding: 1px 6px; border-radius: 3px;">crypto/universe.py</code>
+          dosyasını düzenle ya da bana söyle.
+        </p>
+        <div style="margin-top: 8px;">
+          <a href="/api/crypto/universe" class="btn sm" target="_blank">View raw JSON</a>
+          <a href="/docs" class="btn sm" target="_blank">Swagger</a>
         </div>
       </div>
     </div>
@@ -747,17 +1010,18 @@
 
   <!-- FOOTER -->
   <div class="footer-meta">
-    <div>
-      Trading Agent <span class="accent">V5.9-β</span> · Crypto Module · Standalone Preview
-    </div>
-    <div>
-      Read-only · Brain not yet wired · main system on V5.7 (untouched)
-    </div>
+    <div>Trading Agent <span class="accent">V5.9-δ</span> · Crypto Module · SPA Dashboard</div>
+    <div>Read-only · main system on V5.7 (untouched)</div>
   </div>
 </main>
 
 <script>
 const API = '/api/crypto';
+let mainChart = null;
+let sparkChart = null;
+let marketsData = null;
+let marketsState = { sortKey: 'momentum_score', sortDir: 'desc', minChange: 0, group: '', search: '' };
+
 const fmt = {
   usd: (v) => v == null ? '—' : '$' + Number(v).toLocaleString('en-US', {maximumFractionDigits: 2}),
   small: (v) => {
@@ -770,8 +1034,7 @@ const fmt = {
   pct: (v, signed = false) => {
     if (v == null) return '—';
     const n = Number(v);
-    const s = signed && n >= 0 ? '+' : '';
-    return s + n.toFixed(2) + '%';
+    return (signed && n >= 0 ? '+' : '') + n.toFixed(2) + '%';
   },
   num: (v, d=2) => v == null ? '—' : Number(v).toFixed(d),
 };
@@ -782,6 +1045,51 @@ async function jget(path) {
   return r.json();
 }
 
+// ─── ROUTING ────────────────────────────────────────────────────
+function getRoute() {
+  const h = location.hash || '#/overview';
+  return h.replace('#/', '') || 'overview';
+}
+
+function showView(route) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById('view-' + route);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.route === route));
+  loadViewData(route);
+}
+
+window.addEventListener('hashchange', () => showView(getRoute()));
+
+// ─── VIEW LOADERS ──────────────────────────────────────────────
+async function loadViewData(route) {
+  // Always-on data
+  loadHealth();
+  loadStatus();
+
+  if (route === 'overview') {
+    await Promise.all([loadAccount(), loadMarketDataCore(), loadRegime(), drawSparkBTC()]);
+  } else if (route === 'markets') {
+    await loadMarketsExtended();
+  } else if (route === 'charts') {
+    await initChartsView();
+  } else if (route === 'regime') {
+    await loadRegime();
+  } else if (route === 'positions') {
+    await loadPositions();
+  } else if (route === 'orders') {
+    await loadOrders();
+  } else if (route === 'risk') {
+    await Promise.all([loadRisk(), loadScheduler()]);
+  } else if (route === 'account') {
+    await loadAccountFull();
+  }
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+}
+
+function loadCurrentView() { loadViewData(getRoute()); }
+
+// ─── DATA LOADERS ──────────────────────────────────────────────
 async function loadHealth() {
   try {
     const h = await jget(API + '/health');
@@ -795,6 +1103,27 @@ async function loadHealth() {
   }
 }
 
+async function loadStatus() {
+  // Status chips in topbar — always on
+  try {
+    const [r, s, md] = await Promise.all([
+      jget(API + '/regime'),
+      jget(API + '/scheduler'),
+      jget(API + '/market-data').catch(() => null),
+    ]);
+    document.getElementById('regimeLabel').textContent = (r.regime || '—').toUpperCase();
+    const chip = document.getElementById('regimeChip');
+    chip.className = 'status-chip ' + (
+      r.regime?.includes('bull') ? 'bull' :
+      r.regime?.includes('bear') ? 'bear' : 'neutral'
+    );
+    document.getElementById('scanModeLabel').textContent = s.mode;
+    if (md && md['BTC/USD']) {
+      document.getElementById('btcMini').textContent = fmt.usd(md['BTC/USD'].price);
+    }
+  } catch(e){console.error(e);}
+}
+
 async function loadAccount() {
   try {
     const a = await jget(API + '/account');
@@ -805,21 +1134,45 @@ async function loadAccount() {
   } catch(e){console.error(e);}
 }
 
-async function loadMarketData() {
+async function loadAccountFull() {
+  try {
+    const a = await jget(API + '/account');
+    const el = document.getElementById('accountKvs');
+    if (a.error) { el.innerHTML = '<div class="empty">Hata: ' + a.error + '</div>'; return; }
+    const items = [
+      ['Portfolio Value', fmt.usd(a.portfolio_value), 'ok'],
+      ['Equity', fmt.usd(a.equity), ''],
+      ['Cash', fmt.usd(a.cash), a.cash < 0 ? 'warn' : ''],
+      ['Buying Power', fmt.usd(a.buying_power), 'ok'],
+      ['Status', a.status, a.status?.includes('ACTIVE') ? 'ok' : 'warn'],
+      ['Currency', a.currency, ''],
+      ['Trading Blocked', a.trading_blocked ? 'YES' : 'NO', a.trading_blocked ? 'bad' : 'ok'],
+      ['Account Blocked', a.account_blocked ? 'YES' : 'NO', a.account_blocked ? 'bad' : 'ok'],
+      ['Pattern Day Trader', a.pattern_day_trader ? 'YES' : 'NO', ''],
+      ['Asset Class', a.asset_class.toUpperCase(), ''],
+      ['Mode', a.paper ? 'PAPER' : 'LIVE', a.paper ? 'ok' : 'warn'],
+      ['Dry Run', a.dry_run ? 'TRUE (no orders sent)' : 'FALSE (orders WILL send)', a.dry_run ? 'ok' : 'warn'],
+    ];
+    el.innerHTML = items.map(([k, v, cls]) =>
+      `<div class="kv-row"><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`
+    ).join('');
+  } catch(e){console.error(e);}
+}
+
+async function loadMarketDataCore() {
   try {
     const md = await jget(API + '/market-data');
     const grid = document.getElementById('coinGrid');
-    grid.innerHTML = '';
     const symbols = ['BTC/USD','ETH/USD','SOL/USD','XRP/USD','DOGE/USD',
                      'ADA/USD','AVAX/USD','LINK/USD','DOT/USD','LTC/USD'];
-    for (const sym of symbols) {
+    grid.innerHTML = symbols.map(sym => {
       const d = md[sym];
-      if (!d || d.error) continue;
+      if (!d || d.error) return '';
       const trendCls = d.trend === 'uptrend' ? 'up' : d.trend === 'downtrend' ? 'down' : 'flat';
       const trendLabel = d.trend === 'uptrend' ? '↑ UP' : d.trend === 'downtrend' ? '↓ DOWN' : '→ FLAT';
       const deltaCls = d.change_pct >= 0 ? 'up' : 'down';
-      grid.innerHTML += `
-        <div class="coin-card">
+      return `
+        <div class="coin-card" onclick="openSymbolChart('${sym}')">
           <div class="coin-head">
             <span class="coin-symbol">${sym}</span>
             <span class="coin-trend-tag ${trendCls}">${trendLabel}</span>
@@ -831,8 +1184,7 @@ async function loadMarketData() {
             <span><span class="stat-label">ATR%</span> ${fmt.num(d.atr_pct, 2)}</span>
           </div>
         </div>`;
-    }
-    // BTC hero
+    }).join('');
     const btc = md['BTC/USD'];
     if (btc && !btc.error) {
       document.getElementById('btcPrice').textContent = fmt.usd(btc.price);
@@ -841,54 +1193,43 @@ async function loadMarketData() {
       dEl.className = 'delta ' + (btc.change_pct >= 0 ? 'up' : 'down');
       document.getElementById('btcRsi').textContent = fmt.num(btc.rsi14, 1);
       document.getElementById('btcAtr').textContent = fmt.num(btc.atr_pct, 2);
-      document.getElementById('btcMini').textContent = fmt.usd(btc.price);
     }
-    document.getElementById('symbolCount').textContent = (md._meta?.symbols_resolved || 10);
   } catch(e){console.error(e);}
 }
 
 async function loadRegime() {
   try {
     const r = await jget(API + '/regime');
-    document.getElementById('regimeLabel').textContent = (r.regime || '—').toUpperCase();
-    const chip = document.getElementById('regimeChip');
-    chip.className = 'status-chip ' + (
-      r.regime?.includes('bull') ? 'bull' :
-      r.regime?.includes('bear') ? 'bear' : 'neutral'
-    );
     document.getElementById('quantScore').textContent = r.quant_score;
     document.getElementById('confidence').textContent = r.confidence;
     document.getElementById('reasoning').textContent = r.reasoning || '—';
-
     const comps = r.components || {};
     const compEl = document.getElementById('regimeComponents');
-    compEl.innerHTML = '';
     const compConfig = [
       ['volatility', 'Volatility', (c) => `ATR ort. %${c.avg_atr_pct} · ${c.label}`],
       ['trend', 'Trend', (c) => `Bullish %${c.bullish_pct} · BTC ${c.btc_trend}`],
       ['momentum', 'Momentum', (c) => `RSI ${c.avg_rsi} · ${c.label}`],
       ['breadth', 'Breadth', (c) => `${c.advancing}/${c.total} green · ${c.label}`],
     ];
-    for (const [key, label, fn] of compConfig) {
+    compEl.innerHTML = compConfig.map(([key, label, fn]) => {
       const c = comps[key];
-      if (!c) continue;
-      compEl.innerHTML += `
+      if (!c) return '';
+      return `
         <div class="regime-comp">
           <div class="regime-comp-label">${label}</div>
           <div class="regime-comp-score">${c.score}</div>
           <div class="regime-comp-bar"><div class="regime-comp-bar-fill" style="width:${Math.min(100, c.score)}%"></div></div>
           <div class="regime-comp-detail">${fn(c)}</div>
         </div>`;
-    }
+    }).join('');
   } catch(e){console.error(e);}
 }
 
 async function loadScheduler() {
   try {
     const s = await jget(API + '/scheduler');
-    document.getElementById('scanModeLabel').textContent = s.mode;
-    document.getElementById('schedMode').textContent = s.mode;
-    document.getElementById('schedInterval').textContent = s.interval_minutes + ' dk';
+    const sm = document.getElementById('schedMode'); if (sm) sm.textContent = s.mode;
+    const si = document.getElementById('schedInterval'); if (si) si.textContent = s.interval_minutes + ' dk';
   } catch(e){console.error(e);}
 }
 
@@ -899,43 +1240,52 @@ async function loadRisk() {
     document.getElementById('maxGroup').textContent = (r.max_group_pct * 100).toFixed(0) + '%';
     document.getElementById('atrMult').textContent = r.default_atr_multiplier + '×';
     document.getElementById('stopPct').textContent = (r.default_stop_pct * 100).toFixed(1) + '%';
-
-    // Group bars (universe stats per group)
     const u = await jget(API + '/universe');
     const groups = {};
-    for (const [sym, grp] of Object.entries(u.asset_groups)) {
+    for (const grp of Object.values(u.asset_groups)) {
       groups[grp] = (groups[grp] || 0) + 1;
     }
     const groupEl = document.getElementById('groupBars');
-    groupEl.innerHTML = '';
     const sorted = Object.entries(groups).sort((a,b) => b[1] - a[1]);
     const max = Math.max(...sorted.map(([,c]) => c));
-    for (const [grp, count] of sorted) {
-      groupEl.innerHTML += `
-        <div class="group-row">
-          <span class="group-name">${grp}</span>
-          <div class="group-bar"><div class="group-bar-fill" style="width:${(count/max)*100}%"></div></div>
-          <span class="group-count">${count} sym</span>
-        </div>`;
-    }
+    groupEl.innerHTML = sorted.map(([grp, count]) => `
+      <div class="group-row">
+        <span class="group-name">${grp}</span>
+        <div class="group-bar"><div class="group-bar-fill" style="width:${(count/max)*100}%"></div></div>
+        <span class="group-count">${count} sym</span>
+      </div>`).join('');
   } catch(e){console.error(e);}
 }
 
 async function loadPositions() {
   try {
     const p = await jget(API + '/positions');
-    document.getElementById('positionCount').textContent = p.count || 0;
+    const oc = document.getElementById('positionCount'); if (oc) oc.textContent = p.count || 0;
     document.getElementById('posCount').textContent = (p.count || 0) + ' active';
     if (!p.count) {
       document.getElementById('posList').innerHTML = '<div class="empty">Henüz açık crypto pozisyonu yok.</div>';
-      document.getElementById('positionDetail').textContent = 'No active crypto positions';
+      const pd = document.getElementById('positionDetail'); if (pd) pd.textContent = 'No active crypto positions';
     } else {
-      document.getElementById('posList').innerHTML = p.positions.map(pp => `
-        <div style="padding:8px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">
-          <span><strong>${pp.symbol}</strong> · ${pp.qty} · ${pp.asset_group}</span>
-          <span class="delta ${pp.unrealized_pl >= 0 ? 'up' : 'down'}">${fmt.usd(pp.unrealized_pl)}</span>
-        </div>`).join('');
-      document.getElementById('positionDetail').textContent = p.count + ' open positions';
+      document.getElementById('posList').innerHTML = `
+        <table class="markets">
+          <thead><tr>
+            <th>Symbol</th><th>Group</th><th>Qty</th><th>Avg Entry</th>
+            <th>Current</th><th>Market Value</th><th>P&L</th><th>P&L %</th>
+          </tr></thead>
+          <tbody>
+            ${p.positions.map(pp => `
+              <tr>
+                <td class="symbol">${pp.symbol}</td>
+                <td class="group">${pp.asset_group}</td>
+                <td>${pp.qty}</td>
+                <td>${fmt.usd(pp.avg_entry_price)}</td>
+                <td>${fmt.usd(pp.current_price)}</td>
+                <td>${fmt.usd(pp.market_value)}</td>
+                <td><span class="delta ${pp.unrealized_pl >= 0 ? 'up' : 'down'}">${fmt.usd(pp.unrealized_pl)}</span></td>
+                <td><span class="delta ${pp.unrealized_pl >= 0 ? 'up' : 'down'}">${fmt.pct(pp.unrealized_plpc * 100, true)}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
     }
   } catch(e){console.error(e);}
 }
@@ -949,25 +1299,330 @@ async function loadOrders() {
       document.getElementById('orderList').innerHTML = '<div class="empty">Bekleyen crypto emri yok.</div>';
     } else {
       document.getElementById('orderList').innerHTML = orders.map(o => `
-        <div style="padding:8px 0; border-bottom:1px solid var(--border);">
+        <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
           <strong>${o.symbol}</strong> · ${o.side} · ${o.type} · ${o.status}
         </div>`).join('');
     }
   } catch(e){console.error(e);}
 }
 
-async function loadAll() {
-  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-  await Promise.all([
-    loadHealth(), loadAccount(), loadMarketData(),
-    loadRegime(), loadScheduler(), loadRisk(),
-    loadPositions(), loadOrders(),
-  ]);
+// ─── MARKETS PAGE ────────────────────────────────────────────────
+async function loadMarketsExtended() {
+  try {
+    marketsData = await jget(API + '/extended-data');
+    document.getElementById('marketsCount').textContent =
+      (marketsData._meta?.symbols_resolved || 0) + ' symbols';
+    renderMarkets();
+  } catch(e){console.error(e);}
 }
 
-// Initial + auto-refresh
-loadAll();
-setInterval(loadAll, 30000);  // 30s
+function renderMarkets() {
+  if (!marketsData) return;
+  const u = marketsData;
+  let rows = [];
+  for (const [sym, d] of Object.entries(u)) {
+    if (sym.startsWith('_') || d.error) continue;
+    if (marketsState.search && !sym.toLowerCase().includes(marketsState.search)) continue;
+    if (marketsState.minChange && Math.abs(d.change_pct) < marketsState.minChange) continue;
+    const grp = window.GROUP_MAP?.[sym] || 'Unknown';
+    if (marketsState.group && grp !== marketsState.group) continue;
+    rows.push({sym, ...d, group: grp});
+  }
+  rows.sort((a, b) => {
+    const k = marketsState.sortKey;
+    let av = a[k], bv = b[k];
+    if (typeof av === 'string') return marketsState.sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    if (av == null) av = -Infinity;
+    if (bv == null) bv = -Infinity;
+    return marketsState.sortDir === 'asc' ? av - bv : bv - av;
+  });
+
+  const body = document.getElementById('marketsBody');
+  body.innerHTML = rows.map(r => {
+    const trendCls = r.trend === 'uptrend' ? 'up' : r.trend === 'downtrend' ? 'down' : 'flat';
+    const trendLabel = r.trend === 'uptrend' ? '↑ UP' : r.trend === 'downtrend' ? '↓ DOWN' : '→ FLAT';
+    return `
+      <tr>
+        <td class="symbol">${r.sym}</td>
+        <td class="group">${r.group}</td>
+        <td>${fmt.small(r.price)}</td>
+        <td><span class="delta ${r.change_pct >= 0 ? 'up' : 'down'}">${fmt.pct(r.change_pct, true)}</span></td>
+        <td>${fmt.num(r.rsi14, 1)}</td>
+        <td>${fmt.num(r.atr_pct, 2)}</td>
+        <td>${fmt.num(r.volume_ratio, 2)}</td>
+        <td>${r.momentum_score}</td>
+        <td><span class="coin-trend-tag ${trendCls}">${trendLabel}</span></td>
+      </tr>`;
+  }).join('');
+
+  // Sort indicators
+  document.querySelectorAll('table.markets th[data-sort]').forEach(th => {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    if (th.dataset.sort === marketsState.sortKey) {
+      th.classList.add(marketsState.sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    }
+  });
+}
+
+// Markets event handlers
+document.addEventListener('click', (e) => {
+  const th = e.target.closest('table.markets th[data-sort]');
+  if (th) {
+    const k = th.dataset.sort;
+    if (marketsState.sortKey === k) {
+      marketsState.sortDir = marketsState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      marketsState.sortKey = k;
+      marketsState.sortDir = 'desc';
+    }
+    renderMarkets();
+    return;
+  }
+  const pill = e.target.closest('.filter-pill');
+  if (pill && (pill.dataset.momentum != null || pill.dataset.group != null)) {
+    if (pill.dataset.momentum != null) {
+      marketsState.minChange = Number(pill.dataset.momentum);
+      pill.parentElement.querySelectorAll('[data-momentum]').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+    } else {
+      marketsState.group = pill.dataset.group;
+      pill.parentElement.querySelectorAll('[data-group]').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+    }
+    renderMarkets();
+    return;
+  }
+  // Charts page timeframe
+  const tfp = e.target.closest('#view-charts .filter-pill');
+  if (tfp && tfp.dataset.tf) {
+    document.querySelectorAll('#view-charts .filter-pill').forEach(p => p.classList.remove('active'));
+    tfp.classList.add('active');
+    drawMainChart();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'marketsSearch') {
+    marketsState.search = e.target.value.toLowerCase().trim();
+    renderMarkets();
+  }
+});
+
+// ─── CHARTS ──────────────────────────────────────────────────────
+async function loadGroupMap() {
+  if (window.GROUP_MAP) return;
+  const u = await jget(API + '/universe');
+  window.GROUP_MAP = u.asset_groups;
+}
+
+async function initChartsView() {
+  await loadGroupMap();
+  const sel = document.getElementById('chartSymbol');
+  if (!sel.options.length) {
+    const u = await jget(API + '/universe');
+    sel.innerHTML = u.extended.map(s => `<option value="${s}">${s}</option>`).join('');
+    sel.value = 'BTC/USD';
+    // Symbol değişince summary'i yükle — summary kendi içinde drawMainChart çağırır
+    sel.addEventListener('change', loadSymbolSummary);
+  }
+  // Tek istek = chart + position + metrics
+  await loadSymbolSummary();
+}
+
+async function loadSymbolSummary() {
+  const sym = document.getElementById('chartSymbol').value;
+  try {
+    const s = await jget(`${API}/symbol-summary/${encodeURIComponent(sym)}`);
+    const m = s.market || {};
+    const p = s.position;
+
+    // Live metrics
+    document.getElementById('symPrice').textContent = fmt.small(m.price);
+    const ch = document.getElementById('symChange');
+    ch.textContent = fmt.pct(m.change_pct, true);
+    ch.className = 'sym-change ' + (m.change_pct >= 0 ? 'up' : 'down');
+
+    const trendCls = m.trend === 'uptrend' ? 'up' : m.trend === 'downtrend' ? 'down' : 'flat';
+    const trendLabel = m.trend === 'uptrend' ? '↑ UP' : m.trend === 'downtrend' ? '↓ DOWN' : '→ FLAT';
+    const tt = document.getElementById('symTrendTag');
+    tt.textContent = trendLabel;
+    tt.className = 'coin-trend-tag ' + trendCls;
+
+    document.getElementById('symRsi').textContent = fmt.num(m.rsi14, 1);
+    document.getElementById('symAtr').textContent = fmt.num(m.atr_pct, 2) + '%';
+    document.getElementById('symMomentum').textContent = m.momentum_score ?? '—';
+    document.getElementById('symVolRatio').textContent = fmt.num(m.volume_ratio, 2);
+    document.getElementById('symEma9').textContent = m.ema9 ? fmt.small(m.ema9) : '—';
+    document.getElementById('symEma50').textContent = m.ema50 ? fmt.small(m.ema50) : '—';
+    document.getElementById('symGroup').textContent = s.asset_group || 'Unknown';
+
+    // Position
+    const chip = document.getElementById('posStatusChip');
+    const content = document.getElementById('symPositionContent');
+    if (p) {
+      chip.textContent = 'OPEN';
+      chip.className = 'status-chip has-pos';
+      const plClass = p.unrealized_pl >= 0 ? 'up' : 'down';
+      content.innerHTML = `
+        <div class="pos-row"><span class="k">Quantity</span><span class="v">${p.qty}</span></div>
+        <div class="pos-row"><span class="k">Avg Entry</span><span class="v">${fmt.small(p.avg_entry_price)}</span></div>
+        <div class="pos-row"><span class="k">Current</span><span class="v">${fmt.small(p.current_price ?? m.price)}</span></div>
+        <div class="pos-row"><span class="k">Market Value</span><span class="v big">${fmt.usd(p.market_value)}</span></div>
+        <div class="pos-row"><span class="k">Unrealized P&L</span><span class="v big delta ${plClass}">${fmt.usd(p.unrealized_pl)}</span></div>
+        <div class="pos-row"><span class="k">P&L %</span><span class="v delta ${plClass}">${fmt.pct(p.unrealized_plpc * 100, true)}</span></div>
+        <div class="pos-row"><span class="k">Side</span><span class="v">${p.side?.toUpperCase()}</span></div>
+      `;
+      window.CURRENT_POSITION_ENTRY = p.avg_entry_price;
+    } else {
+      chip.textContent = 'NO POSITION';
+      chip.className = 'status-chip';
+      content.innerHTML = `
+        <div class="empty" style="padding: 16px; font-size: 11.5px;">
+          Bu sembolde henüz açık pozisyonun yok.<br/>
+          <span style="color: var(--text-muted); font-size: 10.5px;">
+            V5.10'da manuel emir butonu eklenecek (paper, dry-run kapatılarak).
+          </span>
+        </div>`;
+      window.CURRENT_POSITION_ENTRY = null;
+    }
+    // Always re-draw chart so entry overlay refreshes (also handles first load)
+    await drawMainChart();
+  } catch(e){console.error(e);}
+}
+
+async function drawMainChart() {
+  const sym = document.getElementById('chartSymbol').value;
+  const active = document.querySelector('#view-charts .filter-pill.active');
+  const tf = active?.dataset.tf || '1Day';
+  const days = active?.dataset.days || 30;
+  const meta = document.getElementById('chartMeta');
+  meta.textContent = `${sym} · ${tf} · ${days}d`;
+
+  const data = await jget(`${API}/bars/${encodeURIComponent(sym)}?timeframe=${tf}&days=${days}`);
+  if (data.error || !data.bars?.length) {
+    meta.textContent = `${sym} · no data (${data.error || 'empty'})`;
+    if (mainChart) { mainChart.destroy(); mainChart = null; }
+    return;
+  }
+
+  const labels = data.bars.map(b => b.t.slice(0, tf.includes('Min') || tf.includes('Hour') ? 16 : 10));
+  const closes = data.bars.map(b => b.c);
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (mainChart) mainChart.destroy();
+
+  // Gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 480);
+  grad.addColorStop(0, 'rgba(247, 147, 26, 0.35)');
+  grad.addColorStop(1, 'rgba(247, 147, 26, 0.0)');
+
+  // Entry price overlay (varsa)
+  const entry = window.CURRENT_POSITION_ENTRY;
+  const datasets = [{
+    label: sym,
+    data: closes,
+    borderColor: '#f7931a',
+    backgroundColor: grad,
+    borderWidth: 2,
+    fill: true,
+    tension: 0.18,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    pointHoverBackgroundColor: '#f7931a',
+  }];
+  if (entry) {
+    datasets.push({
+      label: `Entry ${fmt.small(entry)}`,
+      data: closes.map(() => entry),
+      borderColor: '#34d399',
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+    });
+  }
+
+  mainChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: !!entry,
+          align: 'end', position: 'top',
+          labels: {
+            color: '#94a0b3', font: { family: 'JetBrains Mono', size: 10 },
+            usePointStyle: true, padding: 12,
+          },
+        },
+        tooltip: {
+          backgroundColor: '#11141b',
+          borderColor: '#f7931a',
+          borderWidth: 1,
+          titleColor: '#ffaa3a',
+          bodyColor: '#f5f6f8',
+          titleFont: { family: 'JetBrains Mono', size: 11 },
+          bodyFont: { family: 'JetBrains Mono', size: 12 },
+          padding: 10,
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e2330', drawTicks: false },
+          ticks: { color: '#5e6b7e', font: { size: 10, family: 'JetBrains Mono' }, maxRotation: 0, autoSkipPadding: 30 },
+        },
+        y: {
+          grid: { color: '#1e2330', drawTicks: false },
+          ticks: { color: '#5e6b7e', font: { size: 10, family: 'JetBrains Mono' }, callback: v => '$' + v.toLocaleString() },
+        },
+      },
+    },
+  });
+}
+
+async function drawSparkBTC() {
+  try {
+    const data = await jget(`${API}/bars/${encodeURIComponent('BTC/USD')}?timeframe=1Day&days=30`);
+    if (!data.bars?.length) return;
+    const labels = data.bars.map(b => b.t.slice(0, 10));
+    const closes = data.bars.map(b => b.c);
+    const ctx = document.getElementById('btcSparkChart').getContext('2d');
+    if (sparkChart) sparkChart.destroy();
+    const grad = ctx.createLinearGradient(0, 0, 0, 200);
+    grad.addColorStop(0, 'rgba(247, 147, 26, 0.3)');
+    grad.addColorStop(1, 'rgba(247, 147, 26, 0.0)');
+    sparkChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{
+        data: closes, borderColor: '#f7931a', backgroundColor: grad,
+        borderWidth: 1.8, fill: true, tension: 0.2, pointRadius: 0,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: { x: { display: false }, y: { display: false } },
+      },
+    });
+  } catch(e){console.error(e);}
+}
+
+function openSymbolChart(sym) {
+  location.hash = '#/charts';
+  setTimeout(async () => {
+    const sel = document.getElementById('chartSymbol');
+    if (!sel.options.length) await initChartsView();
+    sel.value = sym;
+    drawMainChart();
+  }, 100);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────
+loadGroupMap();
+showView(getRoute());
+setInterval(() => loadStatus(), 30000);
+setInterval(() => { if (getRoute() === 'overview') loadCurrentView(); }, 30000);
 </script>
 </body>
 </html>
