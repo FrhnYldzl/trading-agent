@@ -1,8 +1,9 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
+  "_comment_only_for_crypto_branch": "Bu dosya SADECE claude/v5.8-abstract-bases (crypto) branch'indedir ve Dockerfile.crypto kullanır. main branch'inde aynı dosya hâlâ Dockerfile (equity) kullanır — equity Railway projesi etkilenmemiştir. Crypto branch'i main'e merge etmeden önce bu dosyanın yolunu config path olarak razı olduğun configlere geri al.",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
+    "dockerfilePath": "Dockerfile.crypto"
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
