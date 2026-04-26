@@ -657,6 +657,182 @@
     background: var(--green-dim); border-color: var(--green); color: var(--green-bright);
   }
 
+  /* ─── AI BRAIN PANEL ────────────────────────────────────────── */
+  .brain-header-banner {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .brain-banner-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 18px;
+  }
+  .brain-banner-card.featured {
+    background: linear-gradient(135deg, var(--bg-card), var(--btc-dim));
+    border-color: var(--btc-border);
+  }
+  .brain-banner-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .brain-regime-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .brain-regime-pill.bull { background: var(--green-dim); color: var(--green-bright); border: 1px solid var(--green); }
+  .brain-regime-pill.bear { background: var(--red-dim); color: var(--red-bright); border: 1px solid var(--red); }
+  .brain-regime-pill.neutral { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-light); }
+  .brain-strategy {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--btc-bright);
+    font-weight: 700;
+  }
+  .brain-banner-text {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  .decisions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 12px;
+  }
+  .decision-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    transition: all 0.15s;
+  }
+  .decision-card:hover {
+    border-color: var(--btc-border);
+    box-shadow: 0 4px 16px rgba(247, 147, 26, 0.08);
+  }
+  .decision-card.long { border-left: 3px solid var(--green); }
+  .decision-card.close_long { border-left: 3px solid var(--red); }
+  .decision-card.hold { border-left: 3px solid var(--text-muted); }
+  .decision-card.watch { border-left: 3px solid var(--blue); }
+  .decision-card.reduce { border-left: 3px solid #fbbf24; }
+
+  .dec-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .dec-symbol {
+    font-family: var(--font-mono);
+    font-weight: 800; font-size: 14px;
+    color: var(--btc-bright);
+  }
+  .dec-action {
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 3px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .dec-action.long { background: var(--green-dim); color: var(--green-bright); }
+  .dec-action.close_long { background: var(--red-dim); color: var(--red-bright); }
+  .dec-action.hold { background: var(--bg-tertiary); color: var(--text-secondary); }
+  .dec-action.watch { background: var(--blue-dim); color: #60a5fa; }
+  .dec-action.reduce { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+  .dec-meta {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin-bottom: 8px;
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+  }
+  .dec-meta strong { color: var(--text-secondary); font-weight: 600; }
+  .dec-confidence {
+    display: inline-block;
+    padding: 2px 7px;
+    background: var(--btc-dim);
+    border: 1px solid var(--btc-border);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--btc-bright);
+    font-size: 11px;
+  }
+  .dec-reasoning {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--btc);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 8px 0;
+  }
+  .dec-levels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .dec-level {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 8px;
+    font-size: 10.5px;
+  }
+  .dec-level-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .dec-level-val {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    margin-top: 2px;
+    color: var(--text-primary);
+  }
+  .dec-level-val.entry { color: var(--btc-bright); }
+  .dec-level-val.stop { color: var(--red-bright); }
+  .dec-level-val.tp { color: var(--green-bright); }
+
+  .dec-risk-note {
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(251, 191, 36, 0.06);
+    border: 1px solid rgba(251, 191, 36, 0.18);
+    border-radius: var(--radius);
+    font-size: 10.5px;
+    color: #fbbf24;
+  }
+
+  .brain-loading {
+    padding: 32px; text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+  }
+  .brain-loading-pulse {
+    display: inline-block;
+    margin-right: 8px;
+    width: 8px; height: 8px;
+    background: var(--btc);
+    border-radius: 50%;
+    animation: pulse 1.2s infinite;
+  }
+
   /* ─── EMPTY ────────────────────────────────────────────────────── */
   .empty {
     padding: 24px; text-align: center;
@@ -741,6 +917,7 @@
     <a class="nav-item" data-route="overview" href="#/overview"><span class="nav-icon">📊</span> Overview</a>
     <a class="nav-item" data-route="markets" href="#/markets"><span class="nav-icon">🌐</span> Markets</a>
     <a class="nav-item" data-route="charts" href="#/charts"><span class="nav-icon">📈</span> Charts</a>
+    <a class="nav-item" data-route="brain" href="#/brain"><span class="nav-icon">🧠</span> AI Brain</a>
     <a class="nav-item" data-route="regime" href="#/regime"><span class="nav-icon">🧭</span> Regime</a>
 
     <div class="nav-section">Portfolio</div>
@@ -1012,6 +1189,28 @@
   </section>
 
   <!-- ============================================================ -->
+  <!-- AI BRAIN                                                     -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-brain" data-view="brain">
+    <div class="view-header">
+      <div>
+        <div class="view-title">🧠 AI Brain — Claude Decisions</div>
+        <div class="view-subtitle">
+          Multi-step reasoning · Regime-aware · Asset group context · Risk-calibrated
+        </div>
+      </div>
+      <div>
+        <span style="font-size: 11px; color: var(--text-tertiary); margin-right: 12px;" id="brainTimestamp">—</span>
+        <button class="btn primary" id="brainRunBtn" onclick="loadBrain(true)">↻ Run Analysis</button>
+      </div>
+    </div>
+
+    <div id="brainContent">
+      <div class="brain-loading"><span class="brain-loading-pulse"></span> Analiz çağrılıyor — Claude AI yanıt veriyor (15-40sn)…</div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
   <!-- REGIME                                                       -->
   <!-- ============================================================ -->
   <section class="view" id="view-regime" data-view="regime">
@@ -1231,6 +1430,8 @@ async function loadViewData(route) {
     await loadMarketsExtended();
   } else if (route === 'charts') {
     await initChartsView();
+  } else if (route === 'brain') {
+    await loadBrain(false);  // cached if available
   } else if (route === 'regime') {
     await loadRegime();
   } else if (route === 'positions') {
@@ -1446,6 +1647,139 @@ async function loadPositions() {
         </table>`;
     }
   } catch(e){console.error(e);}
+}
+
+async function loadBrain(forceFresh = false) {
+  const btn = document.getElementById('brainRunBtn');
+  const content = document.getElementById('brainContent');
+  if (btn) btn.disabled = true;
+  if (forceFresh) {
+    content.innerHTML = '<div class="brain-loading"><span class="brain-loading-pulse"></span> Claude AI çağrılıyor — multi-step reasoning yapıyor (15-40sn)…</div>';
+  }
+  try {
+    const url = API + '/brain' + (forceFresh ? '?fresh=true' : '');
+    const r = await jget(url);
+    renderBrain(r);
+  } catch(e) {
+    content.innerHTML = `<div class="empty">Brain çağrısı başarısız: ${e.message}</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderBrain(r) {
+  const content = document.getElementById('brainContent');
+  if (r.error) {
+    content.innerHTML = `<div class="empty">⚠️ ${r.error}</div>`;
+    return;
+  }
+  const decisions = r.decisions || [];
+  const regimeCls = r.regime?.includes('bull') ? 'bull' : r.regime?.includes('bear') ? 'bear' : 'neutral';
+
+  // Timestamp
+  if (r.timestamp) {
+    const t = new Date(r.timestamp);
+    document.getElementById('brainTimestamp').textContent =
+      'Son analiz: ' + t.toLocaleTimeString() + ' · ' + (r.model || 'claude');
+  }
+
+  let html = `
+    <!-- Header banner: regime + strategy + dominance -->
+    <div class="brain-header-banner">
+      <div class="brain-banner-card featured">
+        <div class="brain-banner-label">Regime &amp; Strategy</div>
+        <span class="brain-regime-pill ${regimeCls}">${(r.regime || '?').toUpperCase()}</span>
+        <span class="brain-strategy">→ ${r.active_strategy || '?'}</span>
+        <div class="brain-banner-text" style="margin-top: 8px;">${r.regime_reasoning || '—'}</div>
+      </div>
+      <div class="brain-banner-card">
+        <div class="brain-banner-label">BTC Dominance View</div>
+        <div class="brain-banner-text">${r.btc_dominance_note || '—'}</div>
+      </div>
+      <div class="brain-banner-card">
+        <div class="brain-banner-label">Asset Group Rotation</div>
+        <div class="brain-banner-text">${r.asset_group_view || '—'}</div>
+      </div>
+    </div>
+
+    <!-- Market summary + Portfolio note -->
+    <div class="grid-2" style="margin-bottom: 16px;">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Market Summary</div></div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">${r.market_summary || '—'}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Portfolio Note</div></div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">${r.portfolio_note || '—'}</div>
+      </div>
+    </div>
+
+    <!-- Decisions -->
+    <div class="section-head" style="margin-bottom: 12px;">
+      <div class="section-title"><span style="color: var(--btc);">▸</span> AI Decisions (${decisions.length})</div>
+    </div>
+  `;
+
+  if (decisions.length === 0) {
+    html += `<div class="empty">Bu turda aksiyon önerisi yok — strateji "${r.active_strategy || 'wait'}".</div>`;
+  } else {
+    html += `<div class="decisions-grid">`;
+    for (const d of decisions) {
+      const action = (d.action || 'hold').toLowerCase();
+      const conf = d.confidence ?? '?';
+      html += `
+        <div class="decision-card ${action}">
+          <div class="dec-head">
+            <div>
+              <span class="dec-symbol">${d.ticker}</span>
+              <span style="font-size: 10px; color: var(--text-tertiary); margin-left: 6px;">${d.asset_group || ''}</span>
+            </div>
+            <span class="dec-action ${action}">${action.replace('_', ' ')}</span>
+          </div>
+          <div class="dec-meta">
+            <span><strong>Confidence:</strong> <span class="dec-confidence">${conf}/10</span></span>
+            <span><strong>Strategy:</strong> ${d.strategy || '?'}</span>
+            <span><strong>R/R:</strong> ${d.risk_reward || '?'}</span>
+            <span><strong>Size:</strong> ${d.position_size_pct || 0}%</span>
+            <span><strong>Urgency:</strong> ${d.urgency || '—'}</span>
+          </div>
+          <div class="dec-reasoning">${d.reasoning || '—'}</div>
+          <div class="dec-levels">
+            <div class="dec-level">
+              <div class="dec-level-label">Entry</div>
+              <div class="dec-level-val entry">${d.entry_zone || '—'}</div>
+            </div>
+            <div class="dec-level">
+              <div class="dec-level-label">Stop Loss</div>
+              <div class="dec-level-val stop">${d.stop_loss || '—'}</div>
+            </div>
+            <div class="dec-level">
+              <div class="dec-level-label">Take Profit</div>
+              <div class="dec-level-val tp">${d.take_profit || '—'}</div>
+            </div>
+          </div>
+          ${d.risk_note ? `<div class="dec-risk-note">⚠ ${d.risk_note}</div>` : ''}
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Watchlist alerts
+  if (r.watchlist_alerts?.length) {
+    html += `
+      <div class="section-head" style="margin-top: 18px; margin-bottom: 12px;">
+        <div class="section-title"><span style="color: var(--btc);">▸</span> Watchlist Alerts</div>
+      </div>
+      <div class="panel">
+        ${r.watchlist_alerts.map(a => `
+          <div style="padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: baseline;">
+            <strong style="color: var(--btc-bright); font-family: var(--font-mono);">${a.ticker}</strong>
+            <span style="font-size: 11.5px; color: var(--text-secondary);">${a.alert}</span>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  content.innerHTML = html;
 }
 
 async function loadOrders() {

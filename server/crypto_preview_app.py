@@ -34,16 +34,18 @@ from crypto import (
     CRYPTO_CORE, CRYPTO_EXTENDED, STABLECOINS, CRYPTO_ASSET_GROUP,
     crypto_universe_stats, get_crypto_data,
     CryptoBroker, CryptoRegimeDetector, CryptoScheduler, CryptoRiskManager,
+    CryptoBrain,
 )
 import os
 
-app = FastAPI(title="Trading Agent — Crypto Preview", version="5.9-ε")
+app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10-α")
 
 # Global instances — singleton tarzı, dry_run ZORUNLU
 _broker = CryptoBroker(dry_run=True, paper=True)
 _regime = CryptoRegimeDetector()
 _scheduler = CryptoScheduler()
 _risk = CryptoRiskManager()
+_brain = CryptoBrain()
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -129,7 +131,7 @@ def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.9-ε",
+        "version": "5.10-α",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
@@ -411,6 +413,75 @@ def symbol_summary(symbol_path: str):
         "position": position,  # None ya da {symbol, qty, avg_entry, ...}
         "has_position": position is not None,
     }
+
+
+@app.get("/api/crypto/brain")
+def brain_decisions():
+    """
+    Claude AI Crypto Brain — multi-step reasoning.
+    Equity'deki claude_brain.run_brain() ile aynı şema.
+
+    Pahalı çağrı (Claude API), 60sn cache.
+    Force fresh için ?fresh=true kullan.
+    """
+    cache_key = "brain:core10"
+    hit = _cache_get(cache_key, ttl=60)
+    if hit is not None:
+        return hit
+
+    if not _brain.enabled:
+        return {
+            "error": "ANTHROPIC_API_KEY env var Railway'e eklenmemiş.",
+            "decisions": [],
+            "regime": "unknown",
+        }
+
+    # 1. Market data (cached)
+    md = _fetch_crypto_md_cached(tuple(CRYPTO_CORE), 60)
+
+    # 2. Regime (cached)
+    rkey = "regime:core10"
+    regime = _cache_get(rkey)
+    if regime is None:
+        regime = _regime.detect(md)
+        _cache_set(rkey, regime)
+
+    # 3. Portfolio
+    try:
+        acct = _broker.client.get_account()
+        positions = _broker.client.get_all_positions()
+        crypto_positions = [
+            {
+                "symbol": p.symbol,
+                "qty": float(p.qty),
+                "avg_entry_price": float(p.avg_entry_price),
+                "current_price": float(p.current_price) if p.current_price else None,
+                "unrealized_pl": float(p.unrealized_pl),
+                "asset_group": CRYPTO_ASSET_GROUP.get(p.symbol, "Unknown"),
+            }
+            for p in positions
+            if p.asset_class and "crypto" in str(p.asset_class).lower()
+        ]
+        portfolio = {
+            "cash": float(acct.cash),
+            "equity": float(acct.equity),
+            "positions": crypto_positions,
+        }
+    except Exception as e:
+        portfolio = {"cash": 0, "equity": 0, "positions": [], "error": str(e)}
+
+    # 4. Brain
+    result = _brain.run_brain(
+        market_data=md,
+        portfolio=portfolio,
+        recent_trades=[],         # V5.10-ε'da journal'dan gelecek
+        regime=regime,
+        sentiment=None,            # V5.10-β'da news'tan gelecek
+        learning_context=None,     # V5.10-ε'da journal'dan gelecek
+    )
+
+    _cache_set(cache_key, result)
+    return result
 
 
 @app.get("/api/crypto/risk-config")
