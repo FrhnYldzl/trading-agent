@@ -918,6 +918,7 @@
     <a class="nav-item" data-route="markets" href="#/markets"><span class="nav-icon">🌐</span> Markets</a>
     <a class="nav-item" data-route="charts" href="#/charts"><span class="nav-icon">📈</span> Charts</a>
     <a class="nav-item" data-route="brain" href="#/brain"><span class="nav-icon">🧠</span> AI Brain</a>
+    <a class="nav-item" data-route="autoexec" href="#/autoexec"><span class="nav-icon">⚙️</span> Auto-Execute</a>
     <a class="nav-item" data-route="regime" href="#/regime"><span class="nav-icon">🧭</span> Regime</a>
 
     <div class="nav-section">Portfolio</div>
@@ -1211,6 +1212,133 @@
   </section>
 
   <!-- ============================================================ -->
+  <!-- AUTO-EXECUTE                                                 -->
+  <!-- ============================================================ -->
+  <section class="view" id="view-autoexec" data-view="autoexec">
+    <div class="view-header">
+      <div>
+        <div class="view-title">⚙️ Auto-Execute Pipeline</div>
+        <div class="view-subtitle">
+          Brain → (Audit) → Risk → Broker → (Journal) · 5 safety gate · Dry-run koruma
+        </div>
+      </div>
+      <div>
+        <span style="font-size: 11px; color: var(--text-tertiary); margin-right: 12px;" id="autoExecLastRun">—</span>
+        <button class="btn primary" id="autoExecRunBtn" onclick="runNow()">▶ Run Now</button>
+      </div>
+    </div>
+
+    <!-- Master Status -->
+    <div class="grid-3" style="margin-bottom: 16px;">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Master Switch</div></div>
+        <div class="kv-row"><span class="k">Auto-execute</span><span class="v" id="aeMasterEnabled">—</span></div>
+        <div class="kv-row"><span class="k">Scheduler running</span><span class="v" id="aeSchedRunning">—</span></div>
+        <div class="kv-row"><span class="k">Broker dry-run</span><span class="v" id="aeDryRun">—</span></div>
+        <div class="kv-row"><span class="k">Total runs</span><span class="v" id="aeRunCount">0</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Daily Risk Anchor</div></div>
+        <div class="kv-row"><span class="k">Anchor date</span><span class="v" id="aeAnchorDate">—</span></div>
+        <div class="kv-row"><span class="k">Anchor equity</span><span class="v" id="aeAnchorEquity">—</span></div>
+        <div class="kv-row"><span class="k">Halt threshold</span><span class="v" id="aeHaltPct">—</span></div>
+        <div class="kv-row"><span class="k">Status</span><span class="v ok" id="aeHaltStatus">OK</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Next Run</div></div>
+        <div class="kv-row"><span class="k">Scheduled</span><span class="v" id="aeNextRun">—</span></div>
+        <div class="kv-row"><span class="k">Mode</span><span class="v" id="aeMode">—</span></div>
+        <div class="kv-row"><span class="k">Interval</span><span class="v" id="aeInterval">—</span></div>
+      </div>
+    </div>
+
+    <!-- Safety Gates -->
+    <div class="section-head" style="margin-bottom: 12px;">
+      <div class="section-title"><span style="color: var(--btc);">▸</span> Safety Gates</div>
+    </div>
+    <div class="grid-3" style="margin-bottom: 16px;">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Min Confidence</div></div>
+        <div style="font-family: var(--font-mono); font-size: 24px; color: var(--btc-bright); font-weight: 700;" id="gateMinConf">—</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Bu eşiğin altında karar = işlem yok</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Max Open Positions</div></div>
+        <div style="font-family: var(--font-mono); font-size: 24px; color: var(--btc-bright); font-weight: 700;" id="gateMaxPos">—</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Aynı anda max açık crypto pozisyonu</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Max Notional / Trade</div></div>
+        <div style="font-family: var(--font-mono); font-size: 24px; color: var(--btc-bright); font-weight: 700;" id="gateMaxNotional">—</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Tek emir USD üst sınırı</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Symbol Cooldown</div></div>
+        <div style="font-family: var(--font-mono); font-size: 24px; color: var(--btc-bright); font-weight: 700;" id="gateCooldown">—</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Aynı sembol için bekleme süresi</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Max Group Concentration</div></div>
+        <div style="font-family: var(--font-mono); font-size: 24px; color: var(--btc-bright); font-weight: 700;" id="gateMaxGroup">—</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Tek asset group portföy %'si</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Daily Loss Halt</div></div>
+        <div style="font-family: var(--font-mono); font-size: 24px; color: #fbbf24; font-weight: 700;" id="gateDailyHalt">—</div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Bu kayba ulaşılırsa tüm gün halt</div>
+      </div>
+    </div>
+
+    <!-- Last Run Detail -->
+    <div class="section-head" style="margin-bottom: 12px;">
+      <div class="section-title"><span style="color: var(--btc);">▸</span> Last Run</div>
+    </div>
+    <div class="panel" id="aeLastRunPanel">
+      <div class="empty">Henüz çalıştırılmadı. "Run Now" tıklayarak manual trigger yapabilirsin.</div>
+    </div>
+
+    <!-- Pipeline Stages (Skeleton) -->
+    <div class="section-head" style="margin-top: 18px; margin-bottom: 12px;">
+      <div class="section-title"><span style="color: var(--btc);">▸</span> Pipeline Stages</div>
+    </div>
+    <div class="panel">
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px;">
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Market Data
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Regime Detect
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Brain (Claude)
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: rgba(251,191,36,0.1); color: #fbbf24; border-radius: var(--radius); border: 1px solid rgba(251,191,36,0.4);">
+          ⏳ Audit (Gemini, V5.10-δ)
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Safety Gates
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Risk Sizing
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Broker
+        </div>
+        <span style="color: var(--text-muted); align-self: center;">→</span>
+        <div style="padding: 8px 14px; background: rgba(251,191,36,0.1); color: #fbbf24; border-radius: var(--radius); border: 1px solid rgba(251,191,36,0.4);">
+          ⏳ Journal (V5.10-ε)
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
   <!-- REGIME                                                       -->
   <!-- ============================================================ -->
   <section class="view" id="view-regime" data-view="regime">
@@ -1432,6 +1560,8 @@ async function loadViewData(route) {
     await initChartsView();
   } else if (route === 'brain') {
     await loadBrain(false);  // cached if available
+  } else if (route === 'autoexec') {
+    await loadAutoExec();
   } else if (route === 'regime') {
     await loadRegime();
   } else if (route === 'positions') {
@@ -1780,6 +1910,144 @@ function renderBrain(r) {
   }
 
   content.innerHTML = html;
+}
+
+async function loadAutoExec() {
+  try {
+    const s = await jget(API + '/scheduler-status');
+    const sched = await jget(API + '/scheduler');
+
+    // Master switch
+    const enabled = s.auto_execute_enabled;
+    const enEl = document.getElementById('aeMasterEnabled');
+    enEl.textContent = enabled ? 'ENABLED ✓' : 'DISABLED';
+    enEl.className = 'v ' + (enabled ? 'ok' : 'warn');
+
+    const schEl = document.getElementById('aeSchedRunning');
+    schEl.textContent = s.scheduler_running ? 'RUNNING' : 'STOPPED';
+    schEl.className = 'v ' + (s.scheduler_running ? 'ok' : 'warn');
+
+    const dryEl = document.getElementById('aeDryRun');
+    dryEl.textContent = s.broker_dry_run ? 'TRUE (no orders)' : 'FALSE (LIVE PAPER)';
+    dryEl.className = 'v ' + (s.broker_dry_run ? 'ok' : 'warn');
+
+    document.getElementById('aeRunCount').textContent = s.run_count || 0;
+
+    // Daily anchor
+    if (s.daily_anchor) {
+      document.getElementById('aeAnchorDate').textContent = s.daily_anchor.date || '—';
+      document.getElementById('aeAnchorEquity').textContent = fmt.usd(s.daily_anchor.equity);
+    } else {
+      document.getElementById('aeAnchorDate').textContent = '—';
+      document.getElementById('aeAnchorEquity').textContent = '—';
+    }
+    document.getElementById('aeHaltPct').textContent = s.gates.DAILY_LOSS_HALT_PCT + '%';
+    document.getElementById('aeHaltStatus').textContent = 'OK';
+
+    // Next run
+    if (s.next_run) {
+      const next = new Date(s.next_run);
+      document.getElementById('aeNextRun').textContent = next.toLocaleTimeString();
+    } else {
+      document.getElementById('aeNextRun').textContent = enabled ? '—' : 'N/A (disabled)';
+    }
+    document.getElementById('aeMode').textContent = sched.mode || '—';
+    document.getElementById('aeInterval').textContent = sched.interval_minutes + ' dk';
+
+    // Gates
+    document.getElementById('gateMinConf').textContent = s.gates.MIN_CONFIDENCE + '/10';
+    document.getElementById('gateMaxPos').textContent = s.gates.MAX_OPEN_POSITIONS;
+    document.getElementById('gateMaxNotional').textContent = '$' + s.gates.MAX_NOTIONAL_PER_TRADE;
+    document.getElementById('gateCooldown').textContent = s.gates.SYMBOL_COOLDOWN_HOURS + ' saat';
+    document.getElementById('gateMaxGroup').textContent = '%' + s.gates.MAX_GROUP_PCT;
+    document.getElementById('gateDailyHalt').textContent = '%' + s.gates.DAILY_LOSS_HALT_PCT;
+
+    // Last run
+    renderLastRun(s.last_run);
+  } catch(e){console.error(e);}
+}
+
+function renderLastRun(lr) {
+  const el = document.getElementById('aeLastRunPanel');
+  if (!lr) {
+    el.innerHTML = '<div class="empty">Henüz çalıştırılmadı. "Run Now" tıklayarak manual trigger yapabilirsin.</div>';
+    document.getElementById('autoExecLastRun').textContent = '';
+    return;
+  }
+  const ts = new Date(lr.timestamp);
+  document.getElementById('autoExecLastRun').textContent = 'Son run: ' + ts.toLocaleTimeString();
+
+  let html = `
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px;">
+      <div class="kv-row"><span class="k">Total decisions</span><span class="v">${lr.decisions_total}</span></div>
+      <div class="kv-row"><span class="k">Executed</span><span class="v ok">${lr.decisions_executed}</span></div>
+      <div class="kv-row"><span class="k">Blocked</span><span class="v warn">${lr.decisions_blocked}</span></div>
+      <div class="kv-row"><span class="k">Errors</span><span class="v ${lr.errors?.length ? 'bad' : 'ok'}">${lr.errors?.length || 0}</span></div>
+    </div>
+    <div style="font-size: 12px; color: var(--text-secondary); padding: 10px 12px; background: var(--bg-tertiary); border-left: 3px solid var(--btc); border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 14px;">
+      ${lr.summary || '—'}
+    </div>
+  `;
+
+  // Blocked gates table
+  const blocked = lr.blocked_by_gate || {};
+  if (Object.keys(blocked).length) {
+    html += `<div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.12em; font-weight: 700; margin-bottom: 8px;">Blocked Gates</div>`;
+    html += `<div style="margin-bottom: 14px;">`;
+    for (const [k, v] of Object.entries(blocked)) {
+      html += `<div class="kv-row"><span class="k" style="font-family: var(--font-mono);">${k}</span><span class="v warn" style="font-size: 11px;">${v}</span></div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Decisions table
+  if (lr.decisions?.length) {
+    html += `
+      <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.12em; font-weight: 700; margin-bottom: 8px;">Decisions Walkthrough</div>
+      <table class="markets">
+        <thead><tr>
+          <th>Symbol</th><th>Action</th><th>Conf</th><th>Status</th><th>Qty</th><th>Notional</th>
+        </tr></thead>
+        <tbody>
+        ${lr.decisions.map(d => `
+          <tr>
+            <td class="symbol">${d.ticker}</td>
+            <td><span class="dec-action ${d.action}">${(d.action || '').replace('_',' ')}</span></td>
+            <td>${d.confidence || '—'}/10</td>
+            <td>${d.executed ? '<span style="color: var(--green-bright); font-weight:700;">' + (d.execution_status || '✓') + '</span>' : '<span style="color: var(--text-tertiary);">skipped</span>'}</td>
+            <td>${d.sizing_qty != null ? Number(d.sizing_qty).toFixed(4) : '—'}</td>
+            <td>${d.sizing_value != null ? '$' + Number(d.sizing_value).toFixed(0) : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // Errors
+  if (lr.errors?.length) {
+    html += `<div style="margin-top: 14px; padding: 10px; background: var(--red-dim); border: 1px solid var(--red); border-radius: var(--radius); font-size: 11.5px; color: var(--red-bright);">`;
+    html += `<strong>Errors:</strong><br/>${lr.errors.join('<br/>')}`;
+    html += `</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+async function runNow() {
+  const btn = document.getElementById('autoExecRunBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+  try {
+    const r = await fetch(API + '/run-now', { method: 'POST' });
+    const data = await r.json();
+    renderLastRun(data);
+    // Status bilgilerini de tazele
+    setTimeout(loadAutoExec, 500);
+  } catch(e) {
+    alert('Run failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Run Now';
+  }
 }
 
 async function loadOrders() {

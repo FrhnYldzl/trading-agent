@@ -30,6 +30,7 @@ from crypto.risk_impl import CryptoRiskManager, get_asset_group, CRYPTO_ASSET_GR
 from crypto.scheduler_impl import CryptoScheduler
 from crypto.regime_impl import CryptoRegimeDetector
 from crypto.brain_impl import CryptoBrain
+from crypto.auto_executor import CryptoAutoExecutor
 
 __all__ = [
     # Universe
@@ -41,6 +42,8 @@ __all__ = [
     # Implementations
     "CryptoBroker", "CryptoRiskManager", "CryptoScheduler",
     "CryptoRegimeDetector", "CryptoBrain",
+    # Auto execution
+    "CryptoAutoExecutor",
     # Risk groups
     "get_asset_group", "CRYPTO_ASSET_GROUP",
 ]

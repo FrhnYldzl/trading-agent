@@ -34,14 +34,18 @@ from crypto import (
     CRYPTO_CORE, CRYPTO_EXTENDED, STABLECOINS, CRYPTO_ASSET_GROUP,
     crypto_universe_stats, get_crypto_data,
     CryptoBroker, CryptoRegimeDetector, CryptoScheduler, CryptoRiskManager,
-    CryptoBrain,
+    CryptoBrain, CryptoAutoExecutor,
 )
 import os
 
-app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10-α")
+app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10-η")
 
-# Global instances — singleton tarzı, dry_run ZORUNLU
-_broker = CryptoBroker(dry_run=True, paper=True)
+# Broker dry_run ayrı env var ile kontrol edilir (default true — paper learning)
+_broker_dry_run = (os.getenv("CRYPTO_DRY_RUN", "true").lower()
+                   in ("true", "1", "yes"))
+
+# Global instances
+_broker = CryptoBroker(dry_run=_broker_dry_run, paper=True)
 _regime = CryptoRegimeDetector()
 _scheduler = CryptoScheduler()
 _risk = CryptoRiskManager()
@@ -73,14 +77,46 @@ def _fetch_crypto_md_cached(symbols: tuple, lookback_days: int = 60):
     hit = _cache_get(key)
     if hit is not None:
         return hit
+    # CRYPTO_ALPACA_* dedicated key, fallback ALPACA_*
+    api_key = os.getenv("CRYPTO_ALPACA_API_KEY") or os.getenv("ALPACA_API_KEY")
+    secret_key = os.getenv("CRYPTO_ALPACA_SECRET_KEY") or os.getenv("ALPACA_SECRET_KEY")
     data = get_crypto_data(
         symbols=list(symbols),
-        api_key=os.getenv("ALPACA_API_KEY"),
-        secret_key=os.getenv("ALPACA_SECRET_KEY"),
+        api_key=api_key, secret_key=secret_key,
         lookback_days=lookback_days,
     )
     _cache_set(key, data)
     return data
+
+
+# ─────────────────────────────────────────────────────────────────
+# Auto-executor (V5.10-η iskeleti)
+# ─────────────────────────────────────────────────────────────────
+
+_auto_executor = CryptoAutoExecutor(
+    broker=_broker,
+    brain=_brain,
+    regime=_regime,
+    risk=_risk,
+    scheduler_helper=_scheduler,
+    data_fetcher=lambda: _fetch_crypto_md_cached(tuple(CRYPTO_CORE), 60),
+    universe=CRYPTO_CORE,
+    asset_group_map=CRYPTO_ASSET_GROUP,
+    cache_get=_cache_get,
+    cache_set=_cache_set,
+)
+
+
+@app.on_event("startup")
+def _startup_scheduler():
+    """CRYPTO_AUTO_EXECUTE=true ise scheduler başlat."""
+    res = _auto_executor.start_scheduler()
+    print(f"[CryptoAutoExec] startup: {res}")
+
+
+@app.on_event("shutdown")
+def _shutdown_scheduler():
+    _auto_executor.stop_scheduler()
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -131,7 +167,7 @@ def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.10-α",
+        "version": "5.10-η",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
@@ -482,6 +518,21 @@ def brain_decisions():
 
     _cache_set(cache_key, result)
     return result
+
+
+@app.get("/api/crypto/scheduler-status")
+def scheduler_status():
+    """Auto-executor + safety gates state."""
+    return _auto_executor.get_status()
+
+
+@app.post("/api/crypto/run-now")
+def run_now():
+    """
+    Manuel pipeline trigger — auto_execute kapalıyken bile çalışır.
+    Broker dry_run ON ise gerçek emir gitmez.
+    """
+    return _auto_executor.run_once(force=True)
 
 
 @app.get("/api/crypto/risk-config")
