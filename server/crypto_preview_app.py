@@ -34,11 +34,11 @@ from crypto import (
     CRYPTO_CORE, CRYPTO_EXTENDED, STABLECOINS, CRYPTO_ASSET_GROUP,
     crypto_universe_stats, get_crypto_data,
     CryptoBroker, CryptoRegimeDetector, CryptoScheduler, CryptoRiskManager,
-    CryptoBrain, CryptoAutoExecutor,
+    CryptoBrain, CryptoAuditor, CryptoAutoExecutor,
 )
 import os
 
-app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10-η")
+app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10-δ")
 
 # Broker dry_run ayrı env var ile kontrol edilir (default true — paper learning)
 _broker_dry_run = (os.getenv("CRYPTO_DRY_RUN", "true").lower()
@@ -50,6 +50,7 @@ _regime = CryptoRegimeDetector()
 _scheduler = CryptoScheduler()
 _risk = CryptoRiskManager()
 _brain = CryptoBrain()
+_auditor = CryptoAuditor()  # V5.10-δ: Gemini auditor
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -104,6 +105,7 @@ _auto_executor = CryptoAutoExecutor(
     asset_group_map=CRYPTO_ASSET_GROUP,
     cache_get=_cache_get,
     cache_set=_cache_set,
+    auditor=_auditor,  # V5.10-δ: Gemini Council
 )
 
 
@@ -172,7 +174,7 @@ def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.10-ε.1",
+        "version": "5.10-δ",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
@@ -180,11 +182,19 @@ def health():
         "is_dedicated_account": _broker.is_dedicated_account,
         "brain_enabled": _brain.enabled,
         "brain_api_key_source": _brain.api_key_source,
+        "auditor_enabled": _auditor.enabled,
+        "auditor_api_key_source": _auditor.api_key_source,
         "journal_db_path": journal_path,
         "journal_persistent": journal_persistent,
         "color": "#f7931a",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@app.get("/api/crypto/audit")
+def audit_status():
+    """Son Gemini audit sonuçları."""
+    return _auditor.get_last_audit()
 
 
 @app.get("/api/crypto/env-debug")

@@ -86,6 +86,7 @@ class CryptoAutoExecutor:
         asset_group_map: dict,
         cache_get=None, cache_set=None,
         journal: Optional[CryptoJournal] = None,
+        auditor=None,  # V5.10-δ: CryptoAuditor (Gemini) — opsiyonel
     ):
         self.broker = broker
         self.brain = brain
@@ -99,6 +100,8 @@ class CryptoAutoExecutor:
         self._cache_set = cache_set
         # V5.10-ε: journal — auto-init eğer dışarıdan gelmediyse
         self.journal = journal or CryptoJournal()
+        # V5.10-δ: Gemini auditor (opsiyonel — None ise audit atlanır)
+        self.auditor = auditor
 
         # Master switch
         self.enabled = (os.getenv("CRYPTO_AUTO_EXECUTE", "false").lower()
@@ -274,8 +277,37 @@ class CryptoAutoExecutor:
             self.run_count += 1
             return result
 
-        # 4. (Gemini audit — V5.10-δ)
-        # for d in decisions: d["audit"] = gemini.audit(d)
+        # 4. Gemini audit (V5.10-δ) — opsiyonel, async olmasa da hızlı
+        audit_results: list[dict] = []
+        if self.auditor and getattr(self.auditor, "enabled", False):
+            try:
+                audit_results = self.auditor.audit_decisions(
+                    decisions=decisions, market_data=md,
+                    portfolio=portfolio,
+                    regime=regime.get("regime", "unknown"),
+                )
+                # Audit verdict'lerini decision'lara enjekte et + journal'a yaz
+                audit_by_ticker = {a["ticker"]: a for a in audit_results}
+                for d in decisions:
+                    a = audit_by_ticker.get(d.get("ticker"))
+                    if a:
+                        d["audit"] = a
+                        try:
+                            self.journal.log_audit(
+                                pipeline_run_id=pipeline_run_id,
+                                brain_run_id=brain_run_id,
+                                symbol=d.get("ticker"),
+                                audit_verdict=a.get("audit_verdict", "?"),
+                                audit_note=a.get("reasoning", ""),
+                            )
+                        except Exception: pass
+            except Exception as e:
+                result["errors"].append(f"audit: {e}")
+                try: self.journal.log_error(pipeline_run_id, f"audit: {e}")
+                except Exception: pass
+
+        # Audit-blocked sayacı
+        audit_rejects = 0
 
         # 5+6+7. Per-decision gates → size → execute
         positions_now = portfolio.get("positions", [])
@@ -290,6 +322,40 @@ class CryptoAutoExecutor:
             # Sadece long/close actions sürer; hold/watch ignore
             if action not in ("long", "close_long", "reduce"):
                 continue
+
+            # ━━━ V5.10-δ: AUDIT GATE ━━━
+            # Audit yapıldıysa ve REJECT verdict'i varsa, gate'lere girmeden bloke
+            audit = d.get("audit")
+            if audit and audit.get("audit_verdict") == "REJECT":
+                reject_reason = audit.get("reasoning", "Gemini audit rejected")
+                flags = ", ".join(audit.get("risk_flags", []))
+                full_reason = f"Gemini REJECT: {reject_reason} [{flags}]"
+                result["blocked_by_gate"][ticker] = full_reason
+                result["decisions_blocked"] += 1
+                audit_rejects += 1
+                try:
+                    self.journal.log_gate_block(
+                        pipeline_run_id=pipeline_run_id,
+                        brain_run_id=brain_run_id,
+                        symbol=ticker, action=action,
+                        confidence=int(d.get("confidence", 0)),
+                        blocked_reason=full_reason,
+                        asset_group=(d.get("asset_group")
+                                     or self.asset_group_map.get(ticker, "Unknown")),
+                    )
+                except Exception: pass
+                continue
+
+            # Audit MODIFY → brain'in stop/TP/size'ı audit önerisiyle değiştir
+            if audit and audit.get("audit_verdict") == "MODIFY":
+                mods = audit.get("modified_params", {})
+                if "stop_loss" in mods:
+                    d["stop_loss"] = mods["stop_loss"]
+                if "take_profit" in mods:
+                    d["take_profit"] = mods["take_profit"]
+                if "position_size_pct" in mods:
+                    d["position_size_pct"] = mods["position_size_pct"]
+                # MODIFY uygulandı, ama yine de gate'lere giriyor
 
             # Per-decision gate stack (mevcut + bu run'da pending olanları say)
             gate_block = self._check_decision_gates(
@@ -399,11 +465,27 @@ class CryptoAutoExecutor:
         # journal.log_brain_run(brain_out, regime, md, result)
 
         # 9. Summary
+        audit_summary = ""
+        if audit_results:
+            approved = sum(1 for a in audit_results if a.get("audit_verdict") == "APPROVE")
+            modified = sum(1 for a in audit_results if a.get("audit_verdict") == "MODIFY")
+            audit_summary = (
+                f" Gemini audit: {approved} onay, {audit_rejects} red, "
+                f"{modified} modify."
+            )
+            result["audit"] = {
+                "total": len(audit_results),
+                "approved": approved,
+                "rejected": audit_rejects,
+                "modified": modified,
+                "results": audit_results,
+            }
         result["summary"] = (
             f"{result['decisions_total']} kararın "
             f"{result['decisions_executed']}'i execute, "
             f"{result['decisions_blocked']}'i bloke. "
             f"Strategy: {result['strategy']}, Regime: {result['regime']}."
+            f"{audit_summary}"
         )
         # Tam karar dökümünü saklamayalım (memory) — özet yeter
         result["decisions"] = [

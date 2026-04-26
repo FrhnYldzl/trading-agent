@@ -1316,8 +1316,8 @@
           ✓ Brain (Claude)
         </div>
         <span style="color: var(--text-muted); align-self: center;">→</span>
-        <div style="padding: 8px 14px; background: rgba(251,191,36,0.1); color: #fbbf24; border-radius: var(--radius); border: 1px solid rgba(251,191,36,0.4);">
-          ⏳ Audit (Gemini, V5.10-δ)
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Audit (Gemini)
         </div>
         <span style="color: var(--text-muted); align-self: center;">→</span>
         <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
@@ -1332,8 +1332,8 @@
           ✓ Broker
         </div>
         <span style="color: var(--text-muted); align-self: center;">→</span>
-        <div style="padding: 8px 14px; background: rgba(251,191,36,0.1); color: #fbbf24; border-radius: var(--radius); border: 1px solid rgba(251,191,36,0.4);">
-          ⏳ Journal (V5.10-ε)
+        <div style="padding: 8px 14px; background: var(--green-dim); color: var(--green-bright); border-radius: var(--radius); border: 1px solid var(--green);">
+          ✓ Journal
         </div>
       </div>
     </div>
@@ -1921,6 +1921,13 @@ function renderBrain(r) {
     </div>
   `;
 
+  // V5.10-δ: Audit results çek + decision'lara eşleştir
+  let audits = {};
+  try {
+    const aud = await jget(API + '/audit');
+    if (aud.results) audits = Object.fromEntries(aud.results.map(a => [a.ticker, a]));
+  } catch(e) {}
+
   if (decisions.length === 0) {
     html += `<div class="empty">Bu turda aksiyon önerisi yok — strateji "${r.active_strategy || 'wait'}".</div>`;
   } else {
@@ -1928,6 +1935,29 @@ function renderBrain(r) {
     for (const d of decisions) {
       const action = (d.action || 'hold').toLowerCase();
       const conf = d.confidence ?? '?';
+      const audit = audits[d.ticker];
+      let auditBadge = '';
+      let auditPanel = '';
+      if (audit) {
+        const verdict = (audit.audit_verdict || '').toUpperCase();
+        const cls = verdict === 'APPROVE' ? 'long'
+                  : verdict === 'REJECT' ? 'close_long'
+                  : verdict === 'MODIFY' ? 'reduce' : 'hold';
+        auditBadge = `<span class="dec-action ${cls}" style="margin-left: 6px;">⚖ ${verdict}</span>`;
+        const riskScore = audit.risk_score || 5;
+        const riskColor = riskScore >= 7 ? 'var(--red-bright)' : riskScore >= 5 ? '#fbbf24' : 'var(--green-bright)';
+        const flags = (audit.risk_flags || []).join(', ');
+        auditPanel = `
+          <div style="margin-top: 8px; padding: 8px 10px; background: var(--bg-tertiary); border-left: 3px solid var(--blue); border-radius: 0 var(--radius) var(--radius) 0; font-size: 11px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="color: var(--blue-bright, #60a5fa);">⚖ Gemini Audit</strong>
+              <span style="color: ${riskColor}; font-family: var(--font-mono); font-weight: 700;">Risk ${riskScore}/10</span>
+            </div>
+            <div style="color: var(--text-secondary); line-height: 1.5;">${audit.reasoning || ''}</div>
+            ${flags ? `<div style="margin-top: 4px; color: var(--text-muted); font-size: 10px;">Flags: ${flags}</div>` : ''}
+            ${audit.modified_params && Object.keys(audit.modified_params).length ? `<div style="margin-top: 4px; color: #fbbf24; font-size: 10px;">Önerilen değişiklikler: ${JSON.stringify(audit.modified_params)}</div>` : ''}
+          </div>`;
+      }
       html += `
         <div class="decision-card ${action}">
           <div class="dec-head">
@@ -1935,7 +1965,10 @@ function renderBrain(r) {
               <span class="dec-symbol">${d.ticker}</span>
               <span style="font-size: 10px; color: var(--text-tertiary); margin-left: 6px;">${d.asset_group || ''}</span>
             </div>
-            <span class="dec-action ${action}">${action.replace('_', ' ')}</span>
+            <div>
+              <span class="dec-action ${action}">${action.replace('_', ' ')}</span>
+              ${auditBadge}
+            </div>
           </div>
           <div class="dec-meta">
             <span><strong>Confidence:</strong> <span class="dec-confidence">${conf}/10</span></span>
@@ -1960,6 +1993,7 @@ function renderBrain(r) {
             </div>
           </div>
           ${d.risk_note ? `<div class="dec-risk-note">⚠ ${d.risk_note}</div>` : ''}
+          ${auditPanel}
         </div>`;
     }
     html += `</div>`;
