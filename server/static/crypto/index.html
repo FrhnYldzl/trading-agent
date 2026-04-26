@@ -1868,7 +1868,7 @@ async function loadBrain(forceFresh = false) {
   }
 }
 
-function renderBrain(r) {
+async function renderBrain(r) {
   const content = document.getElementById('brainContent');
   if (r.error) {
     content.innerHTML = `<div class="empty">⚠️ ${r.error}</div>`;
