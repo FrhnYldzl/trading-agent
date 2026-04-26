@@ -462,6 +462,81 @@
   }
   .chart-canvas-wrap.compact { height: 200px; }
 
+  /* ─── OVERVIEW CHART CARDS ────────────────────────────────────── */
+  .overview-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 14px;
+  }
+  .ovc-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ovc-card:hover {
+    border-color: var(--btc-border);
+    box-shadow: 0 4px 16px rgba(247, 147, 26, 0.1);
+  }
+  .ovc-card.btc {
+    background: linear-gradient(135deg, var(--bg-card), var(--btc-dim) 60%);
+    border-color: var(--btc-border);
+  }
+  .ovc-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .ovc-symbol {
+    font-family: var(--font-mono);
+    font-weight: 800; font-size: 14px;
+    color: var(--btc-bright);
+  }
+  .ovc-tag {
+    font-size: 9px; padding: 2px 7px; border-radius: 3px;
+    text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;
+    background: var(--bg-tertiary); color: var(--text-tertiary);
+  }
+  .ovc-tag.long { background: var(--green-dim); color: var(--green-bright); }
+  .ovc-stats {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 6px;
+  }
+  .ovc-price {
+    font-family: var(--font-mono);
+    font-size: 18px; font-weight: 700;
+  }
+  .ovc-pl {
+    font-family: var(--font-mono);
+    font-size: 12px; font-weight: 700;
+  }
+  .ovc-pl.up { color: var(--green-bright); }
+  .ovc-pl.down { color: var(--red-bright); }
+  .ovc-meta {
+    display: flex; gap: 12px;
+    font-size: 10.5px; color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: 10px;
+  }
+  .ovc-canvas-wrap {
+    position: relative;
+    width: 100%; height: 160px;
+  }
+  .ovc-empty {
+    grid-column: 1 / -1;
+    padding: 28px;
+    background: var(--bg-tertiary);
+    border: 1px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+  }
+  .ovc-empty .accent {
+    color: var(--btc-bright); font-weight: 700;
+  }
+
   /* ─── CHARTS PAGE LAYOUT ─────────────────────────────────────── */
   .charts-layout {
     display: grid;
@@ -696,16 +771,22 @@
       </div>
     </div>
 
-    <!-- BTC mini chart -->
-    <div class="chart-panel" style="margin-bottom: 22px;">
-      <div class="panel-head">
-        <div class="panel-title">BTC/USD — 30 Day Trend</div>
-        <span style="font-size: 11px; color: var(--text-tertiary);">
-          Daily candles · <a href="#/charts" style="color: var(--btc);">Full chart →</a>
-        </span>
+    <!-- BTC + My Position charts grid -->
+    <div style="margin-bottom: 22px;">
+      <div class="section-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div class="section-title" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.16em; font-weight: 800; color: var(--text-secondary);">
+          <span style="color: var(--btc);">▸</span> Charts — BTC + My Positions
+        </div>
+        <div style="font-size: 11px; color: var(--text-tertiary);">
+          <span class="filter-pill active" data-otf="1Hour" data-odays="2">1H</span>
+          <span class="filter-pill" data-otf="4Hour" data-odays="7">4H</span>
+          <span class="filter-pill" data-otf="1Day" data-odays="30">1D</span>
+          <span class="filter-pill" data-otf="1Day" data-odays="90">3M</span>
+          <a href="#/charts" style="color: var(--btc); text-decoration: none; margin-left: 12px;">Full charts →</a>
+        </div>
       </div>
-      <div class="chart-canvas-wrap compact">
-        <canvas id="btcSparkChart"></canvas>
+      <div class="overview-charts" id="overviewCharts">
+        <!-- Populated by loadOverviewCharts() -->
       </div>
     </div>
 
@@ -1018,7 +1099,8 @@
 <script>
 const API = '/api/crypto';
 let mainChart = null;
-let sparkChart = null;
+let overviewCharts = {};  // {symbol: Chart instance}
+let overviewState = { tf: '1Day', days: 30 };
 let marketsData = null;
 let marketsState = { sortKey: 'momentum_score', sortDir: 'desc', minChange: 0, group: '', search: '' };
 
@@ -1068,7 +1150,7 @@ async function loadViewData(route) {
   loadStatus();
 
   if (route === 'overview') {
-    await Promise.all([loadAccount(), loadMarketDataCore(), loadRegime(), drawSparkBTC()]);
+    await Promise.all([loadAccount(), loadMarketDataCore(), loadRegime(), loadOverviewCharts()]);
   } else if (route === 'markets') {
     await loadMarketsExtended();
   } else if (route === 'charts') {
@@ -1398,6 +1480,16 @@ document.addEventListener('click', (e) => {
     document.querySelectorAll('#view-charts .filter-pill').forEach(p => p.classList.remove('active'));
     tfp.classList.add('active');
     drawMainChart();
+    return;
+  }
+  // Overview chart timeframe (BTC + position cards)
+  const otfp = e.target.closest('#view-overview .filter-pill');
+  if (otfp && otfp.dataset.otf) {
+    document.querySelectorAll('#view-overview .filter-pill').forEach(p => p.classList.remove('active'));
+    otfp.classList.add('active');
+    overviewState.tf = otfp.dataset.otf;
+    overviewState.days = Number(otfp.dataset.odays);
+    loadOverviewCharts();
   }
 });
 
@@ -1582,30 +1674,137 @@ async function drawMainChart() {
   });
 }
 
-async function drawSparkBTC() {
+async function loadOverviewCharts() {
   try {
-    const data = await jget(`${API}/bars/${encodeURIComponent('BTC/USD')}?timeframe=1Day&days=30`);
-    if (!data.bars?.length) return;
-    const labels = data.bars.map(b => b.t.slice(0, 10));
-    const closes = data.bars.map(b => b.c);
-    const ctx = document.getElementById('btcSparkChart').getContext('2d');
-    if (sparkChart) sparkChart.destroy();
-    const grad = ctx.createLinearGradient(0, 0, 0, 200);
-    grad.addColorStop(0, 'rgba(247, 147, 26, 0.3)');
-    grad.addColorStop(1, 'rgba(247, 147, 26, 0.0)');
-    sparkChart = new Chart(ctx, {
-      type: 'line',
-      data: { labels, datasets: [{
-        data: closes, borderColor: '#f7931a', backgroundColor: grad,
-        borderWidth: 1.8, fill: true, tension: 0.2, pointRadius: 0,
-      }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        scales: { x: { display: false }, y: { display: false } },
-      },
-    });
+    const data = await jget(`${API}/overview-charts?timeframe=${overviewState.tf}&days=${overviewState.days}`);
+    const wrap = document.getElementById('overviewCharts');
+    if (!wrap) return;
+
+    // Destroy existing charts
+    Object.values(overviewCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+    overviewCharts = {};
+
+    const cards = [];
+
+    // BTC card (always)
+    if (data.btc?.bars?.length) {
+      const last = data.btc.bars[data.btc.bars.length - 1].c;
+      const first = data.btc.bars[0].c;
+      const changePct = first > 0 ? ((last - first) / first * 100) : 0;
+      const cls = changePct >= 0 ? 'up' : 'down';
+      cards.push(`
+        <div class="ovc-card btc" onclick="openSymbolChart('BTC/USD')">
+          <div class="ovc-head">
+            <span class="ovc-symbol">BTC/USD</span>
+            <span class="ovc-tag">L1 · BENCHMARK</span>
+          </div>
+          <div class="ovc-stats">
+            <span class="ovc-price">${fmt.usd(last)}</span>
+            <span class="ovc-pl ${cls}">${fmt.pct(changePct, true)} <span style="color: var(--text-muted); font-weight: 500;">(${overviewState.days}d)</span></span>
+          </div>
+          <div class="ovc-meta">
+            <span><span style="color: var(--text-muted);">Bars</span> ${data.btc.bars.length}</span>
+            <span><span style="color: var(--text-muted);">TF</span> ${overviewState.tf}</span>
+          </div>
+          <div class="ovc-canvas-wrap"><canvas id="ovc-canvas-btc"></canvas></div>
+        </div>`);
+    }
+
+    // Position cards
+    const positions = data.positions || [];
+    for (const p of positions) {
+      if (!p.bars?.length) continue;
+      const pos = p.position;
+      const cls = pos.unrealized_pl >= 0 ? 'up' : 'down';
+      const last = p.bars[p.bars.length - 1].c;
+      cards.push(`
+        <div class="ovc-card" onclick="openSymbolChart('${p.symbol}')">
+          <div class="ovc-head">
+            <span class="ovc-symbol">${p.symbol}</span>
+            <span class="ovc-tag long">${pos.side?.toUpperCase()} · ${p.asset_group}</span>
+          </div>
+          <div class="ovc-stats">
+            <span class="ovc-price">${fmt.small(last)}</span>
+            <span class="ovc-pl ${cls}">${fmt.usd(pos.unrealized_pl)} (${fmt.pct(pos.unrealized_plpc * 100, true)})</span>
+          </div>
+          <div class="ovc-meta">
+            <span><span style="color: var(--text-muted);">Qty</span> ${pos.qty}</span>
+            <span><span style="color: var(--text-muted);">Entry</span> ${fmt.small(pos.avg_entry_price)}</span>
+            <span><span style="color: var(--text-muted);">MV</span> ${fmt.usd(pos.market_value)}</span>
+          </div>
+          <div class="ovc-canvas-wrap"><canvas id="ovc-canvas-${p.symbol.replace('/', '_')}"></canvas></div>
+        </div>`);
+    }
+
+    // Empty state if no positions (BTC alone is fine, but add hint)
+    if (positions.length === 0 && data.btc?.bars?.length) {
+      cards.push(`
+        <div class="ovc-empty">
+          <span style="font-size: 24px;">💼</span><br/>
+          <strong style="color: var(--text-secondary);">Henüz açık crypto pozisyonun yok</strong><br/>
+          <span style="font-size: 11px;">İşlem açtığında her pozisyonun grafiği BTC'nin yanında burada görünecek.</span><br/>
+          <span style="font-size: 11px; color: var(--text-muted);">
+            Şu an sistem <span class="accent">read-only</span> + <span class="accent">dry-run</span> modda.
+            Manuel emir butonu V5.10'da geliyor.
+          </span>
+        </div>`);
+    }
+
+    wrap.innerHTML = cards.join('');
+
+    // Now render the charts
+    if (data.btc?.bars?.length) {
+      drawOvcChart('ovc-canvas-btc', data.btc.bars, '#f7931a', null);
+      overviewCharts['BTC/USD'] = window._lastOvc;
+    }
+    for (const p of positions) {
+      if (!p.bars?.length) continue;
+      const cid = 'ovc-canvas-' + p.symbol.replace('/', '_');
+      const entry = p.position?.avg_entry_price;
+      drawOvcChart(cid, p.bars, '#34d399', entry);
+      overviewCharts[p.symbol] = window._lastOvc;
+    }
   } catch(e){console.error(e);}
+}
+
+function drawOvcChart(canvasId, bars, lineColor, entry) {
+  const el = document.getElementById(canvasId);
+  if (!el) return;
+  const ctx = el.getContext('2d');
+  const labels = bars.map(b => b.t.slice(0, 10));
+  const closes = bars.map(b => b.c);
+  const grad = ctx.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, lineColor === '#f7931a' ? 'rgba(247, 147, 26, 0.28)' : 'rgba(52, 211, 153, 0.22)');
+  grad.addColorStop(1, lineColor === '#f7931a' ? 'rgba(247, 147, 26, 0)' : 'rgba(52, 211, 153, 0)');
+  const datasets = [{
+    data: closes, borderColor: lineColor, backgroundColor: grad,
+    borderWidth: 1.8, fill: true, tension: 0.2, pointRadius: 0, pointHoverRadius: 3,
+  }];
+  if (entry) {
+    datasets.push({
+      data: closes.map(() => entry),
+      borderColor: '#fbbf24', borderDash: [4, 3],
+      borderWidth: 1.2, fill: false, pointRadius: 0,
+    });
+  }
+  window._lastOvc = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#11141b', borderColor: lineColor, borderWidth: 1,
+          titleColor: lineColor === '#f7931a' ? '#ffaa3a' : '#34d399',
+          bodyColor: '#f5f6f8', titleFont: { family: 'JetBrains Mono', size: 10 },
+          bodyFont: { family: 'JetBrains Mono', size: 11 }, padding: 8,
+        },
+      },
+      scales: { x: { display: false }, y: { display: false } },
+    },
+  });
 }
 
 function openSymbolChart(sym) {

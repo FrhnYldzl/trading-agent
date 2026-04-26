@@ -271,6 +271,70 @@ def bars(symbol_path: str, timeframe: str = "1Day", days: int = 30):
         return {"symbol": symbol_path, "error": str(e), "bars": [], "count": 0}
 
 
+@app.get("/api/crypto/overview-charts")
+def overview_charts(timeframe: str = "1Day", days: int = 30):
+    """
+    Overview sayfası için tek-istek: BTC + her açık pozisyon için bar verisi.
+    BTC her zaman dahil. Pozisyonların entry fiyatı, qty, P&L overlay için.
+
+    30sn cache (bars endpoint'i ile aynı TTL).
+    """
+    cache_key = f"overview-charts:{timeframe}:{days}"
+    hit = _cache_get(cache_key, ttl=30)
+    if hit is not None:
+        return hit
+
+    out = {"btc": None, "positions": []}
+
+    # 1. BTC her zaman göster
+    btc = bars("BTC/USD", timeframe=timeframe, days=days)
+    out["btc"] = {
+        "symbol": "BTC/USD",
+        "bars": btc.get("bars", []),
+        "asset_group": CRYPTO_ASSET_GROUP.get("BTC/USD", "L1"),
+    }
+
+    # 2. Açık crypto pozisyonları topla
+    try:
+        all_positions = _broker.client.get_all_positions()
+        crypto_positions = [
+            p for p in all_positions
+            if p.asset_class and "crypto" in str(p.asset_class).lower()
+        ]
+    except Exception as e:
+        out["error"] = f"positions fetch: {e}"
+        crypto_positions = []
+
+    for p in crypto_positions:
+        sym = p.symbol
+        # Alpaca bazen slash'sız döner — chart endpoint'i için slash'lı versiyona çevir
+        if "/" not in sym and sym.endswith("USD"):
+            sym_slash = sym[:-3] + "/USD"
+        else:
+            sym_slash = sym
+        b = bars(sym_slash, timeframe=timeframe, days=days)
+        out["positions"].append({
+            "symbol": sym_slash,
+            "bars": b.get("bars", []),
+            "asset_group": CRYPTO_ASSET_GROUP.get(sym_slash, "Unknown"),
+            "position": {
+                "qty": float(p.qty),
+                "side": str(p.side),
+                "avg_entry_price": float(p.avg_entry_price),
+                "current_price": float(p.current_price) if p.current_price else None,
+                "market_value": float(p.market_value),
+                "unrealized_pl": float(p.unrealized_pl),
+                "unrealized_plpc": float(p.unrealized_plpc),
+            },
+        })
+
+    out["timeframe"] = timeframe
+    out["days"] = days
+    out["count"] = 1 + len(crypto_positions)  # BTC + position chartları
+    _cache_set(cache_key, out)
+    return out
+
+
 @app.get("/api/crypto/symbol-summary/{symbol_path:path}")
 def symbol_summary(symbol_path: str):
     """
