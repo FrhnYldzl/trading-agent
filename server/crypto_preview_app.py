@@ -164,10 +164,15 @@ def modules():
 
 @app.get("/api/crypto/health")
 def health():
+    journal_path = _auto_executor.journal.db_path
+    journal_persistent = (
+        "/app/data" in journal_path
+        or os.getenv("JOURNAL_DB_PATH") is not None
+    )
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.10-ε",
+        "version": "5.10-ε.1",
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
@@ -175,6 +180,8 @@ def health():
         "is_dedicated_account": _broker.is_dedicated_account,
         "brain_enabled": _brain.enabled,
         "brain_api_key_source": _brain.api_key_source,
+        "journal_db_path": journal_path,
+        "journal_persistent": journal_persistent,
         "color": "#f7931a",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

@@ -26,10 +26,38 @@ Kullanım:
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
+
+
+def _resolve_db_path() -> str:
+    """
+    DB yolunu çöz — Railway Volume desteği:
+
+    1. JOURNAL_DB_PATH env var → set edilmişse onu kullan (Railway override)
+    2. /app/data/crypto_journal.db → varsa (Railway Volume mount path)
+    3. server/crypto_journal.db → lokal fallback (Volume yok)
+
+    Railway Volume kullanımı:
+      Service → Settings → Volumes → + New Volume
+      Mount path: /app/data
+      Bu sayede SQLite dosyası container redeploy'larını survive eder.
+    """
+    env_path = os.getenv("JOURNAL_DB_PATH")
+    if env_path:
+        return env_path
+    railway_volume = Path("/app/data")
+    if railway_volume.is_dir() or railway_volume.parent.is_dir():
+        try:
+            railway_volume.mkdir(parents=True, exist_ok=True)
+            return str(railway_volume / "crypto_journal.db")
+        except Exception:
+            pass
+    # Lokal fallback
+    return str(Path(__file__).parent.parent / "crypto_journal.db")
 
 
 def _now_iso() -> str:
@@ -93,12 +121,22 @@ CREATE INDEX IF NOT EXISTS idx_journal_run ON journal(pipeline_run_id);
 class CryptoJournal:
     """SQLite-backed crypto trade journal."""
 
-    def __init__(self, db_path: str = "crypto_journal.db"):
-        # Eğer relative path ise server/ altına yerleştir (Dockerfile WORKDIR)
-        p = Path(db_path)
-        if not p.is_absolute():
-            p = Path(__file__).parent.parent / db_path
-        self.db_path = str(p)
+    def __init__(self, db_path: str = None):
+        """
+        db_path verilmezse otomatik çözüm:
+          1. JOURNAL_DB_PATH env var (Railway override)
+          2. /app/data/crypto_journal.db (Railway Volume mount)
+          3. server/crypto_journal.db (lokal fallback)
+        """
+        if db_path is None:
+            self.db_path = _resolve_db_path()
+        else:
+            p = Path(db_path)
+            if not p.is_absolute():
+                p = Path(__file__).parent.parent / db_path
+            self.db_path = str(p)
+        # DB dizinini oluştur (varsa no-op)
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
     def _conn(self) -> sqlite3.Connection:
