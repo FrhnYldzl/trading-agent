@@ -231,12 +231,172 @@ class CryptoBroker(BaseBroker):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-        # Gerçek emir gönderme yolu (V5.9'da bilinçli olarak EKLENMEDİ)
+        # ─── V5.10-ζ: GERÇEK ALPACA CRYPTO ORDER ────────────
+        # Aksiyon dispatch (long/close_long/reduce destekli; short crypto'da yok)
+        if action == "long":
+            return self._buy_crypto(ticker, qty, price, stop_loss, take_profit, order_type)
+        elif action == "close_long":
+            return self._close_crypto_position(ticker)
+        elif action == "reduce":
+            return self._reduce_crypto_position(ticker, qty)
+        else:
+            return {
+                "status": "error",
+                "ticker": ticker,
+                "reason": f"Bilinmeyen action: {action}",
+            }
+
+    # ───────────────────────────────────────────────────────────
+    # V5.10-ζ: Gerçek Alpaca crypto order metotları
+    # ───────────────────────────────────────────────────────────
+
+    def _buy_crypto(
+        self, ticker: str, qty: float, price: float,
+        stop_loss: float = None, take_profit: float = None,
+        order_type: str = "market",
+    ) -> dict:
+        """
+        Crypto buy emri — Alpaca paper.
+
+        Tasarım:
+          - **Notional (USD-bazlı) emir** kullanırız — fractional crypto için en
+            temiz yöntem (qty 0.0064 BTC yerine "$500 worth of BTC" diyoruz).
+          - Alpaca crypto **bracket order desteklemez** — stop_loss ve
+            take_profit emir olarak gönderilmez. Bunun yerine journal'a
+            HEDEF olarak kaydedilir, V5.10-η.4 polling ile takip edilir
+            ve hit olunca market emirle kapatılır.
+          - time_in_force: GTC (Good Till Cancelled) — crypto için standart.
+        """
+        from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
+        from alpaca.trading.enums import OrderSide, TimeInForce
+
+        # Notional hesabı — qty * price = USD değer
+        if qty <= 0 or price <= 0:
+            return {
+                "status": "error", "ticker": ticker,
+                "reason": f"Geçersiz qty/price: qty={qty}, price={price}",
+            }
+        notional = round(qty * price, 2)
+        if notional < 1.0:
+            return {
+                "status": "error", "ticker": ticker,
+                "reason": f"Notional çok küçük: ${notional} (Alpaca min ~$1)",
+            }
+
+        try:
+            if order_type == "limit" and price > 0:
+                req = LimitOrderRequest(
+                    symbol=ticker,
+                    qty=round(qty, 8),
+                    side=OrderSide.BUY,
+                    time_in_force=TimeInForce.GTC,
+                    limit_price=round(price, 4),
+                )
+            else:
+                # Default: market with notional
+                req = MarketOrderRequest(
+                    symbol=ticker,
+                    notional=notional,
+                    side=OrderSide.BUY,
+                    time_in_force=TimeInForce.GTC,
+                )
+            order = self.client.submit_order(req)
+            result = self._order_to_dict(order)
+            # Stop/TP HEDEF olarak işaretle (emir yok, sadece ekle)
+            result["notional_usd"] = notional
+            result["stop_loss_target"] = stop_loss
+            result["take_profit_target"] = take_profit
+            result["bracket_note"] = (
+                "Alpaca crypto bracket desteklemez — stop/TP scheduler "
+                "polling ile takip edilir (V5.10-η.4)."
+            )
+            return result
+        except Exception as e:
+            return {
+                "status": "error", "ticker": ticker,
+                "reason": f"Alpaca order failed: {e}",
+            }
+
+    def _close_crypto_position(self, ticker: str) -> dict:
+        """Tüm pozisyonu market sell ile kapat."""
+        from alpaca.trading.requests import MarketOrderRequest
+        from alpaca.trading.enums import OrderSide, TimeInForce
+
+        # Pozisyonu bul
+        pos = None
+        for sym_form in (ticker, ticker.replace("/", "")):
+            try:
+                pos = self.client.get_open_position(sym_form)
+                break
+            except Exception:
+                continue
+        if not pos:
+            return {
+                "status": "error", "ticker": ticker,
+                "reason": "Açık pozisyon bulunamadı",
+            }
+
+        side = OrderSide.SELL if str(pos.side).lower() in ("long", "positionside.long") else OrderSide.BUY
+        try:
+            req = MarketOrderRequest(
+                symbol=ticker,
+                qty=float(pos.qty),
+                side=side,
+                time_in_force=TimeInForce.GTC,
+            )
+            order = self.client.submit_order(req)
+            result = self._order_to_dict(order)
+            result["closed_qty"] = float(pos.qty)
+            result["closed_avg_entry"] = float(pos.avg_entry_price)
+            return result
+        except Exception as e:
+            return {
+                "status": "error", "ticker": ticker,
+                "reason": f"close failed: {e}",
+            }
+
+    def _reduce_crypto_position(self, ticker: str, qty: float) -> dict:
+        """Pozisyonu kısmen kapat (verilen qty kadar sat)."""
+        from alpaca.trading.requests import MarketOrderRequest
+        from alpaca.trading.enums import OrderSide, TimeInForce
+
+        pos = self.get_position(ticker)
+        if not pos:
+            return {"status": "error", "ticker": ticker, "reason": "Pozisyon yok"}
+
+        sell_qty = min(qty, pos.get("qty", 0))
+        if sell_qty <= 0:
+            return {"status": "error", "ticker": ticker, "reason": f"Geçersiz reduce qty: {sell_qty}"}
+
+        try:
+            req = MarketOrderRequest(
+                symbol=ticker,
+                qty=round(sell_qty, 8),
+                side=OrderSide.SELL,
+                time_in_force=TimeInForce.GTC,
+            )
+            order = self.client.submit_order(req)
+            result = self._order_to_dict(order)
+            result["reduced_qty"] = sell_qty
+            return result
+        except Exception as e:
+            return {"status": "error", "ticker": ticker, "reason": f"reduce failed: {e}"}
+
+    @staticmethod
+    def _order_to_dict(order) -> dict:
+        """Alpaca Order objesini dict'e çevir."""
         return {
-            "status": "error",
-            "ticker": ticker,
-            "reason": "Live crypto order placement V5.9'da implement edilmedi. "
-                      "Önce paper'da kapsamlı test, sonra V5.9-γ'da açılacak.",
+            "status": str(order.status).split(".")[-1].lower() if order.status else "submitted",
+            "id": str(order.id),
+            "symbol": order.symbol,
+            "qty": float(order.qty) if order.qty else None,
+            "notional": float(order.notional) if order.notional else None,
+            "side": str(order.side).split(".")[-1].lower() if order.side else None,
+            "order_type": str(order.order_type).split(".")[-1].lower() if order.order_type else None,
+            "submitted_at": order.submitted_at.isoformat() if order.submitted_at else None,
+            "filled_at": order.filled_at.isoformat() if order.filled_at else None,
+            "filled_avg_price": float(order.filled_avg_price) if order.filled_avg_price else None,
+            "filled_qty": float(order.filled_qty) if order.filled_qty else None,
         }
 
     def cancel_all_orders(self) -> dict:

@@ -33,6 +33,8 @@ from crypto.brain_impl import CryptoBrain
 from crypto.auto_executor import CryptoAutoExecutor
 from crypto.journal import CryptoJournal
 from crypto.audit_impl import CryptoAuditor
+from crypto.news_impl import get_crypto_news, get_sentiment_for_brain
+from crypto.anomaly_impl import detect_anomalies
 
 __all__ = [
     # Universe
@@ -46,6 +48,8 @@ __all__ = [
     "CryptoRegimeDetector", "CryptoBrain", "CryptoAuditor",
     # Auto execution + journal
     "CryptoAutoExecutor", "CryptoJournal",
+    # News + anomaly (V5.10-β/γ)
+    "get_crypto_news", "get_sentiment_for_brain", "detect_anomalies",
     # Risk groups
     "get_asset_group", "CRYPTO_ASSET_GROUP",
 ]

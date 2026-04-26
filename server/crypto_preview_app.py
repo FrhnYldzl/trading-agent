@@ -35,10 +35,11 @@ from crypto import (
     crypto_universe_stats, get_crypto_data,
     CryptoBroker, CryptoRegimeDetector, CryptoScheduler, CryptoRiskManager,
     CryptoBrain, CryptoAuditor, CryptoAutoExecutor,
+    get_crypto_news, detect_anomalies,
 )
 import os
 
-app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10-δ")
+app = FastAPI(title="Trading Agent — Crypto Preview", version="5.10")
 
 # Broker dry_run ayrı env var ile kontrol edilir (default true — paper learning)
 _broker_dry_run = (os.getenv("CRYPTO_DRY_RUN", "true").lower()
@@ -174,7 +175,7 @@ def health():
     return {
         "status": "ok",
         "module": "crypto",
-        "version": "5.10-δ",
+        "version": "5.10",  # V5.10 final — α/β/γ/δ/ε/ζ/η hepsi tamam
         "asset_class": "crypto",
         "dry_run": _broker.dry_run,
         "paper": _broker.paper,
@@ -195,6 +196,19 @@ def health():
 def audit_status():
     """Son Gemini audit sonuçları."""
     return _auditor.get_last_audit()
+
+
+@app.get("/api/crypto/news")
+def news_endpoint(force: bool = False):
+    """V5.10-β: Crypto news + sentiment (10dk cache)."""
+    return get_crypto_news(force_refresh=force)
+
+
+@app.get("/api/crypto/anomalies")
+def anomalies_endpoint():
+    """V5.10-γ: Anomaly detection — flash dump, vol spike, market stress."""
+    md = _fetch_crypto_md_cached(tuple(CRYPTO_CORE), 60)
+    return detect_anomalies(md)
 
 
 @app.get("/api/crypto/env-debug")

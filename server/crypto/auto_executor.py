@@ -32,6 +32,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from core.asset_class import AssetClass
 from crypto.journal import CryptoJournal
+from crypto.news_impl import get_sentiment_for_brain
+from crypto.anomaly_impl import detect_anomalies
 
 
 def _now_utc() -> datetime:
@@ -244,6 +246,43 @@ class CryptoAutoExecutor:
             self.run_count += 1
             return result
 
+        # ━━━ V5.10-η.4: Trade Close Lifecycle ━━━
+        # Açık trade'leri tara — stop/TP hit olanları kapat, manuel kapananları
+        # journal'a yansıt. Bu adım brain'den ÖNCE — yeni karar verirken
+        # güncel pozisyon durumunu görmeli.
+        try:
+            close_summary = self._check_exits_and_close(md, pipeline_run_id)
+            result["closes_processed"] = close_summary
+        except Exception as e:
+            result["errors"].append(f"close_lifecycle: {e}")
+
+        # ━━━ V5.10-γ: Anomaly Detection ━━━
+        # Brain'den önce — kritik anomali varsa emergency_halt set ederiz
+        # ve yeni LONG kararı engelleriz (close_long ya da reduce serbest).
+        anomaly_state = {"emergency_halt": False, "anomalies": []}
+        try:
+            anomaly_state = detect_anomalies(md)
+            result["anomalies"] = anomaly_state
+            if anomaly_state.get("emergency_halt"):
+                # Critical (BTC flash dump vs.) — yeni long bloke
+                # Mevcut pozisyonların close_long işlemi yapılabilir
+                pass  # gate'lerde uygulanacak
+        except Exception as e:
+            result["errors"].append(f"anomaly: {e}")
+
+        # ━━━ V5.10-β: News + Sentiment ━━━
+        sentiment_data = None
+        try:
+            sentiment_data = get_sentiment_for_brain(list(self.universe))
+            if sentiment_data:
+                result["news_summary"] = {
+                    "tickers_with_news": len(sentiment_data),
+                    "tickers": list(sentiment_data.keys()),
+                }
+        except Exception as e:
+            result["errors"].append(f"news: {e}")
+            sentiment_data = None
+
         # 3. Brain
         brain_run_id: Optional[int] = None
         try:
@@ -251,7 +290,8 @@ class CryptoAutoExecutor:
             brain_out = self.brain.run_brain(
                 market_data=md, portfolio=portfolio,
                 regime=regime, recent_trades=[],
-                sentiment=None, learning_context=None,
+                sentiment=sentiment_data,  # V5.10-β: news context
+                learning_context=None,
             )
             result["strategy"] = brain_out.get("active_strategy")
             decisions = brain_out.get("decisions", [])
@@ -321,6 +361,26 @@ class CryptoAutoExecutor:
 
             # Sadece long/close actions sürer; hold/watch ignore
             if action not in ("long", "close_long", "reduce"):
+                continue
+
+            # ━━━ V5.10-γ: ANOMALY EMERGENCY HALT GATE ━━━
+            # Critical anomali varsa (BTC flash dump vs.) yeni LONG bloke,
+            # ama close_long ve reduce serbest (pozisyon kapatma izni).
+            if anomaly_state.get("emergency_halt") and action == "long":
+                halt_reason = anomaly_state.get("summary", "Anomaly emergency halt")
+                result["blocked_by_gate"][ticker] = halt_reason
+                result["decisions_blocked"] += 1
+                try:
+                    self.journal.log_gate_block(
+                        pipeline_run_id=pipeline_run_id,
+                        brain_run_id=brain_run_id,
+                        symbol=ticker, action=action,
+                        confidence=int(d.get("confidence", 0)),
+                        blocked_reason=halt_reason,
+                        asset_group=(d.get("asset_group")
+                                     or self.asset_group_map.get(ticker, "Unknown")),
+                    )
+                except Exception: pass
                 continue
 
             # ━━━ V5.10-δ: AUDIT GATE ━━━
@@ -617,6 +677,123 @@ class CryptoAutoExecutor:
             }
         except Exception:
             return {"cash": 0, "equity": 0, "positions": []}
+
+    # ───────────────────────────────────────────────────────────
+    # V5.10-η.4: Trade Close Lifecycle
+    # ───────────────────────────────────────────────────────────
+
+    def _check_exits_and_close(self, market_data: dict, pipeline_run_id: str) -> dict:
+        """
+        Açık trade'lerde stop/TP hit olduysa kapat, manuel kapananları yansıt.
+
+        Returns: özet dict (stop_hit, tp_hit, manual_close, errors sayıları)
+        """
+        summary = {"stop_hit": 0, "tp_hit": 0, "manual_close": 0, "errors": 0}
+
+        # 1. Journal'daki açık trade'ler
+        try:
+            open_trades = self.journal.get_open_trades()
+        except Exception:
+            return summary
+        if not open_trades:
+            return summary
+
+        # 2. Alpaca'daki şu anki crypto pozisyonları (market value, qty)
+        try:
+            alpaca_positions = self.broker.client.get_all_positions()
+            alpaca_crypto = {
+                # Slash form ve slash-siz form'u eşleştir
+                self._normalize_symbol(p.symbol): p
+                for p in alpaca_positions
+                if p.asset_class and "crypto" in str(p.asset_class).lower()
+            }
+        except Exception:
+            alpaca_crypto = {}
+
+        # 3. Her açık trade için:
+        for trade in open_trades:
+            symbol = trade.get("symbol")
+            if not symbol:
+                continue
+            symbol_norm = self._normalize_symbol(symbol)
+            entry_price = trade.get("entry_price") or 0
+            qty = trade.get("qty") or 0
+            stop = trade.get("stop_loss")
+            tp = trade.get("take_profit")
+            trade_open_id = trade.get("id")
+
+            current_data = market_data.get(symbol, {})
+            current_price = current_data.get("price")
+
+            # Pozisyon Alpaca'da yoksa = manuel kapanmış (kullanıcı veya başka)
+            if symbol_norm not in alpaca_crypto:
+                # Manual close: P&L'ı bilmediğimiz için current_price kullan
+                if current_price:
+                    self._log_close(
+                        trade_open_id, symbol, entry_price, current_price,
+                        qty, "manual_close", pipeline_run_id,
+                    )
+                    summary["manual_close"] += 1
+                continue
+
+            # Stop hit?
+            if current_price and stop and current_price <= stop:
+                close_result = self.broker.execute(
+                    action="close_long", ticker=symbol,
+                    qty=qty, price=current_price,
+                )
+                if close_result.get("status") not in ("error", "rejected"):
+                    self._log_close(
+                        trade_open_id, symbol, entry_price, current_price,
+                        qty, "stop_hit", pipeline_run_id,
+                    )
+                    summary["stop_hit"] += 1
+                else:
+                    summary["errors"] += 1
+                continue
+
+            # TP hit?
+            if current_price and tp and current_price >= tp:
+                close_result = self.broker.execute(
+                    action="close_long", ticker=symbol,
+                    qty=qty, price=current_price,
+                )
+                if close_result.get("status") not in ("error", "rejected"):
+                    self._log_close(
+                        trade_open_id, symbol, entry_price, current_price,
+                        qty, "tp_hit", pipeline_run_id,
+                    )
+                    summary["tp_hit"] += 1
+                else:
+                    summary["errors"] += 1
+                continue
+
+        return summary
+
+    def _log_close(
+        self, trade_open_id, symbol, entry_price, exit_price, qty,
+        exit_reason: str, pipeline_run_id: str,
+    ):
+        """Journal'a trade_close kaydı + P&L hesabı."""
+        try:
+            # Hold süresi: trade_open timestamp'inden şimdi
+            self.journal.log_trade_close(
+                trade_open_id=trade_open_id,
+                symbol=symbol,
+                entry_price=entry_price,
+                exit_price=exit_price,
+                qty=qty,
+                exit_reason=exit_reason,
+                hold_minutes=None,  # Hesabı için ek query gerekir; opsiyonel
+            )
+        except Exception as e:
+            print(f"[CryptoAutoExec] log_close error: {e}")
+
+    @staticmethod
+    def _normalize_symbol(sym: str) -> str:
+        """BTC/USD ve BTCUSD form'larını eşitle."""
+        s = (sym or "").upper().replace("/", "")
+        return s
 
     @staticmethod
     def _parse_price(s) -> Optional[float]:
